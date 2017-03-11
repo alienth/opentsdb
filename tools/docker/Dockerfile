@@ -20,15 +20,13 @@ ENV       CONFIG $ETCDIR/opentsdb.conf
 ENV       STATICROOT $WORKDIR/static
 ENV       CACHEDIR $DATADIR/cache
 
-ENV       CLASSPATH  $WORKDIR:$WORKDIR/tsdb-$VERSION.jar:$WORKDIR/libs/*:$WORKDIR/logback.xml
+ENV       CLASSPATH  $WORKDIR:$WORKDIR/tsdb-$VERSION.jar:$WORKDIR/libs/logback-classic-1.0.13.jar:$WORKDIR/libs/logback-core-1.0.13.jar:$WORKDIR/libs/*:$WORKDIR/logback.xml
 ENV       CLASS net.opentsdb.tools.TSDMain
 
 # It is expected these might need to be passed in with the -e flag
 ENV       JAVA_OPTS="-Xms512m -Xmx2048m"
-ENV       ZKQUORUM zookeeper:2181
-ENV       ZKBASEDIR /hbase
-ENV       TSDB_OPTS "--read-only --disable-ui"
-ENV       TSDB_PORT  4244
+ENV       TSDB_OPTS "--disable-ui"
+ENV       TSDB_PORT  4242
 
 WORKDIR   $WORKDIR
 
@@ -40,4 +38,4 @@ ADD       opentsdb.conf $ETCDIR/opentsdb.conf
 VOLUME    ["/etc/openstsdb"]
 VOLUME    ["/data/opentsdb"]
 
-ENTRYPOINT java -enableassertions -enablesystemassertions -classpath ${CLASSPATH} ${CLASS} --config=${CONFIG} --staticroot=${STATICROOT} --cachedir=${CACHEDIR} --port=${TSDB_PORT} --zkquorum=${ZKQUORUM} --zkbasedir=${ZKBASEDIR} ${TSDB_OPTS}
+ENTRYPOINT java -enableassertions -enablesystemassertions -classpath ${CLASSPATH} ${CLASS} --config=${CONFIG} --staticroot=${STATICROOT} --cachedir=${CACHEDIR} --port=${TSDB_PORT} ${TSDB_OPTS}
