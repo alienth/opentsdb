@@ -2,7 +2,7 @@ FROM java:openjdk-8-alpine
 
 MAINTAINER jonathan.creasy@gmail.com
 
-ENV       VERSION 2.3.0-RC1
+ENV       VERSION 2.3.0
 ENV       WORKDIR /usr/share/opentsdb
 ENV       LOGDIR  /var/log/opentsdb
 ENV       DATADIR /data/opentsdb
