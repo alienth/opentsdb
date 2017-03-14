@@ -31,6 +31,7 @@ import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
 
 import org.hbase.async.RegionClientStats;
+import org.hbase.async.ClientStats;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -96,7 +97,11 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
       } else if ("region_clients".equals(endpoint)) {
         printRegionClientStats(tsdb, query);
         return;
+      } else if ("client".equals(endpoint)) {
+        printClientStats(tsdb, query);
+        return;
       }
+
     } catch (IllegalArgumentException e) {
       // this is thrown if the url doesn't start with /api. To maintain backwards
       // compatibility with the /stats endpoint we can catch and continue here.
@@ -173,6 +178,18 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
       stats.add(stat_map);
     }
     query.sendReply(query.serializer().formatRegionStatsV1(stats));
+  }
+
+  private void printClientStats(final TSDB tsdb, final HttpQuery query) {
+    final ClientStats client_stats = tsdb.getClient().stats();
+    final Map<String, Object> stats = new HashMap<String, Object>();
+    stats.put("flushes", client_stats.flushes());
+    stats.put("gets", client_stats.gets());
+    stats.put("puts", client_stats.puts());
+    stats.put("scans", client_stats.scans());
+    stats.put("rowLocks", client_stats.rowLocks());
+
+    query.sendReply(query.serializer().formatQueryStatsV1(stats));
   }
   
   
