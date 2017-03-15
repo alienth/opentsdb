@@ -68,6 +68,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
               writes_blocked.incrementAndGet();
             }
           }
+          LOG.warn("put: HBase error: " + arg.getMessage());
           hbase_errors.incrementAndGet();
           return null;
         }
@@ -145,6 +146,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       final class PutErrback implements Callback<Boolean, Exception> {
         public Boolean call(final Exception arg) {
           handleStorageException(tsdb, dp, arg);
+          LOG.warn("put: HBase error: " + arg.getMessage());
           hbase_errors.incrementAndGet();
           
           if (show_details) {
