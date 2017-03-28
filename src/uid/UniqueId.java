@@ -564,7 +564,7 @@ public final class UniqueId implements UniqueIdInterface {
     }
 
     private PutRequest reverseMapping() {
-      return new PutRequest(table, row, NAME_FAMILY, kind, toBytes(name));
+      return new PutRequest(table, kind, NAME_FAMILY, row, toBytes(name));
     }
 
     private Deferred<?> createForwardMapping(final Object arg) {
@@ -592,7 +592,7 @@ public final class UniqueId implements UniqueIdInterface {
     }
 
     private PutRequest forwardMapping() {
-        return new PutRequest(table, toBytes(name), ID_FAMILY, kind, row);
+        return new PutRequest(table, kind, ID_FAMILY, toBytes(name), row);
     }
 
     private Deferred<byte[]> done(final Object arg) {
@@ -1013,7 +1013,7 @@ public final class UniqueId implements UniqueIdInterface {
     // but the forward mapping without reverse mapping is bad.
     try {
       final PutRequest reverse_mapping = new PutRequest(
-        table, row, NAME_FAMILY, kind, newnameb);
+        table, kind, NAME_FAMILY, row, newnameb);
       hbasePutWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
                         INITIAL_EXP_BACKOFF_DELAY);
     } catch (HBaseException e) {
@@ -1028,7 +1028,7 @@ public final class UniqueId implements UniqueIdInterface {
     // Now create the new forward mapping.
     try {
       final PutRequest forward_mapping = new PutRequest(
-        table, newnameb, ID_FAMILY, kind, row);
+        table, kind, ID_FAMILY, newnameb, row);
       hbasePutWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
                         INITIAL_EXP_BACKOFF_DELAY);
     } catch (HBaseException e) {
@@ -1184,22 +1184,23 @@ public final class UniqueId implements UniqueIdInterface {
   private static Scanner getSuggestScanner(final HBaseClient client,
       final byte[] tsd_uid_table, final String search,
       final byte[] kind_or_null, final int max_results) {
-    final byte[] start_row;
-    final byte[] end_row;
-    if (search.isEmpty()) {
-      start_row = START_ROW;
-      end_row = END_ROW;
-    } else {
-      start_row = toBytes(search);
-      end_row = Arrays.copyOf(start_row, start_row.length);
-      end_row[start_row.length - 1]++;
-    }
+    final byte[] start_col;
+    final byte[] end_col;
     final Scanner scanner = client.newScanner(tsd_uid_table);
-    scanner.setStartKey(start_row);
-    scanner.setStopKey(end_row);
+    if (!search.isEmpty()) {
+      start_col = toBytes(search);
+      end_col = Arrays.copyOf(start_col, start_col.length);
+      end_col[start_col.length - 1]++;
+      scanner.setStartCol(start_col);
+      scanner.setStopCol(end_col);
+    }
     scanner.setFamily(ID_FAMILY);
     if (kind_or_null != null) {
-      scanner.setQualifier(kind_or_null);
+      scanner.addKey(kind_or_null);
+    } else {
+      scanner.addKey("metrics".getBytes());
+      scanner.addKey("tagk".getBytes());
+      scanner.addKey("tagv".getBytes());
     }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
@@ -1207,8 +1208,8 @@ public final class UniqueId implements UniqueIdInterface {
 
   /** Returns the cell of the specified row key, using family:kind. */
   private Deferred<byte[]> hbaseGet(final byte[] key, final byte[] family) {
-    final GetRequest get = new GetRequest(table, key);
-    get.family(family).qualifier(kind);
+    final GetRequest get = new GetRequest(table, kind);
+    get.family(family).qualifier(key);
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
       public byte[] call(final ArrayList<KeyValue> row) {
         if (row == null || row.isEmpty()) {
