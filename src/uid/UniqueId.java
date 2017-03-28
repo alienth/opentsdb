@@ -936,8 +936,8 @@ public final class UniqueId implements UniqueIdInterface {
             continue;
           }
         }
-        final byte[] key = row.get(0).key();
-        final String name = fromBytes(key);
+        final byte[] qualifier = row.get(0).qualifier();
+        final String name = fromBytes(qualifier);
         final byte[] id = row.get(0).value();
         final byte[] cached_id = name_cache.get(name);
         if (cached_id == null) {
@@ -1644,8 +1644,8 @@ public final class UniqueId implements UniqueIdInterface {
           rows = scanner.nextRows().join()) {
         for (final ArrayList<KeyValue> row : rows) {
           for (KeyValue kv: row) {
-            final String name = fromBytes(kv.key());
-            final byte[] kind = kv.qualifier();
+            final String name = fromBytes(kv.qualifier());
+            final byte[] kind = kv.key();
             final byte[] id = kv.value();
             LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
                 name, fromBytes(kind));
