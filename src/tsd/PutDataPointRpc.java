@@ -146,7 +146,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       final class PutErrback implements Callback<Boolean, Exception> {
         public Boolean call(final Exception arg) {
           handleStorageException(tsdb, dp, arg);
-          LOG.warn("put: HBase error: " + arg.getMessage());
+          LOG.error("HBase put error", arg);
           hbase_errors.incrementAndGet();
           
           if (show_details) {
