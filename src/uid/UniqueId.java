@@ -1644,8 +1644,8 @@ public final class UniqueId implements UniqueIdInterface {
           rows = scanner.nextRows().join()) {
         for (final ArrayList<KeyValue> row : rows) {
           for (KeyValue kv: row) {
-            final String name = fromBytes(kv.key());
-            final byte[] kind = kv.qualifier();
+            final String name = fromBytes(kv.qualifier());
+            final byte[] kind = kv.key();
             final byte[] id = kv.value();
             LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
                 name, fromBytes(kind));
