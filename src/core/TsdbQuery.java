@@ -341,24 +341,7 @@ final class TsdbQuery implements Query {
     
     // if we have tsuids set, that takes precedence
     if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
-      tsuids = new ArrayList<String>(sub_query.getTsuids());
-      String first_metric = "";
-      for (final String tsuid : tsuids) {
-        if (first_metric.isEmpty()) {
-          first_metric = tsuid.substring(0, TSDB.metrics_width() * 2)
-            .toUpperCase();
-          continue;
-        }
-        
-        final String metric = tsuid.substring(0, TSDB.metrics_width() * 2)
-          .toUpperCase();
-        if (!first_metric.equals(metric)) {
-          throw new IllegalArgumentException(
-            "One or more TSUIDs did not share the same metric [" + first_metric + 
-            "] [" + metric + "]");
-        }
-      }
-      return Deferred.fromResult(null);
+      throw new IllegalArgumentException("This fork does not support TSUID queries.");
     } else {
       /** Triggers the group by resolution if we had filters to resolve */
       class FilterCB implements Callback<Object, ArrayList<byte[]>> {
