@@ -1135,7 +1135,6 @@ final class TsdbQuery implements Query {
    */
   private void createAndSetFilter(final Scanner scanner) {
     QueryUtil.setDataTableScanFilter(scanner, group_bys, row_key_literals, 
-        explicit_tags, enable_fuzzy_filter, 
         (end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
         : (int) getScanEndTimeSeconds()));

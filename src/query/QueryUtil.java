@@ -183,11 +183,6 @@ public class QueryUtil {
    * be null.
    * @param row_key_literals An optional list of key value pairs to filter on.
    * May be null.
-   * @param explicit_tag sWhether or not explicit tags are enabled so that the
-   * regex only picks out series with the specified tags
-   * @param enable_fuzzy_filter Whether or not a fuzzy filter should be used
-   * in combination with the explicit tags param. If explicit tags is disabled
-   * then this param is ignored. 
    * @param end_time The end of the query time so the fuzzy filter knows when
    * to stop scanning.
    */
@@ -195,8 +190,6 @@ public class QueryUtil {
       final Scanner scanner, 
       final List<byte[]> group_bys, 
       final ByteMap<byte[][]> row_key_literals,
-      final boolean explicit_tags,
-      final boolean enable_fuzzy_filter,
       final int end_time) {
     
     // no-op
@@ -209,21 +202,8 @@ public class QueryUtil {
         Const.TIMESTAMP_BYTES;
     final short name_width = TSDB.tagk_width();
     final short value_width = TSDB.tagv_width();
-    final byte[] fuzzy_key;
-    final byte[] fuzzy_mask;
-    if (explicit_tags && enable_fuzzy_filter) {
-      fuzzy_key = new byte[prefix_width + (row_key_literals.size() * 
-          (name_width + value_width))];
-      fuzzy_mask = new byte[prefix_width + (row_key_literals.size() *
-          (name_width + value_width))];
-      System.arraycopy(scanner.getCurrentKey(), 0, fuzzy_key, 0, 
-          scanner.getCurrentKey().length);
-    } else {
-      fuzzy_key = fuzzy_mask = null;
-    }
     
-    final String regex = getRowKeyUIDRegex(group_bys, row_key_literals, 
-        explicit_tags, fuzzy_key, fuzzy_mask);
+    final String regex = getRowKeyUIDRegex(group_bys, row_key_literals);
     final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
         regex.toString(), Const.ASCII_CHARSET);
     if (LOG.isDebugEnabled()) {
@@ -231,30 +211,9 @@ public class QueryUtil {
           byteRegexToString(regex));
     }
     
-    if (!(explicit_tags && enable_fuzzy_filter)) {
-      scanner.setFilter(regex_filter);
-      return;
-    }
-    
-    scanner.setStartKey(fuzzy_key);
-    final byte[] stop_key = Arrays.copyOf(fuzzy_key, fuzzy_key.length);
-    Internal.setBaseTime(stop_key, end_time);
-    int idx = Const.SALT_WIDTH() + TSDB.metrics_width() + 
-        Const.TIMESTAMP_BYTES + TSDB.tagk_width();
-    // max out the tag values
-    while (idx < stop_key.length) {
-      for (int i = 0; i < TSDB.tagv_width(); i++) {
-        stop_key[idx++] = (byte) 0xFF;
-      }
-      idx += TSDB.tagk_width();
-    }
-    scanner.setStopKey(stop_key);
-    final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
-    filters.add(
-        new FuzzyRowFilter(
-            new FuzzyRowFilter.FuzzyFilterPair(fuzzy_key, fuzzy_mask)));
-    filters.add(regex_filter);
-    scanner.setFilter(new FilterList(filters));
+    scanner.setFilter(regex_filter);
+    return;
+
   }
   
   /**
