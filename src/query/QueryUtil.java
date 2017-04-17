@@ -191,18 +191,13 @@ public class QueryUtil {
       final List<byte[]> group_bys, 
       final ByteMap<byte[][]> row_key_literals,
       final int end_time) {
-    
+
     // no-op
     if ((group_bys == null || group_bys.isEmpty()) 
         && (row_key_literals == null || row_key_literals.isEmpty())) {
       return;
     }
-    
-    final int prefix_width = Const.SALT_WIDTH() + TSDB.metrics_width() + 
-        Const.TIMESTAMP_BYTES;
-    final short name_width = TSDB.tagk_width();
-    final short value_width = TSDB.tagv_width();
-    
+
     final String regex = getRowKeyUIDRegex(group_bys, row_key_literals);
     final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
         regex.toString(), Const.ASCII_CHARSET);
@@ -210,7 +205,7 @@ public class QueryUtil {
       LOG.debug("Regex for scanner: " + scanner + ": " + 
           byteRegexToString(regex));
     }
-    
+
     scanner.setFilter(regex_filter);
     return;
 
