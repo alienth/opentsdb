@@ -629,7 +629,7 @@ public final class TSDB {
         }
         
         Bytes.setInt(row, (int) base_time, metric.length + Const.SALT_WIDTH());
-        RowKey.prefixKeyWithSalt(row);
+        RowKey.prefixKeyWithSalt(row, metric, tags);
 
         Deferred<Object> result = null;
         final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);

@@ -101,8 +101,8 @@ public final class Internal {
   }
   
   /** @see RowKey#metricName */
-  public static String metricName(final TSDB tsdb, final byte[] id) {
-    return RowKey.metricName(tsdb, id);
+  public static String metricName(final byte[] key) {
+    return RowKey.metricName(key);
   }
 
   /** Extracts the timestamp from a row key.  */

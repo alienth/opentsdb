@@ -35,73 +35,13 @@ final public class RowKey {
    * @return The name of the metric.
    * @throws NoSuchUniqueId if the UID could not resolve to a string
    */
-  static String metricName(final TSDB tsdb, final byte[] row) {
-    try {
-      return metricNameAsync(tsdb, row).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+  static String metricName(final byte[] key) {
+    return getKeyField(key, 0);
   }
 
-  /**
-   * Extracts the name of the metric ID contained in a row key.
-   * @param tsdb The TSDB to use.
-   * @param row The actual row key.
-   * @return A deferred to wait on that will return the name of the metric.
-   * @throws IllegalArgumentException if the row key is too short due to missing
-   * salt or metric or if it's null/empty.
-   * @throws NoSuchUniqueId if the UID could not resolve to a string
-   * @since 1.2
-   */
-  public static Deferred<String> metricNameAsync(final TSDB tsdb, 
-      final byte[] row) {
-    if (row == null || row.length < 1) {
-      throw new IllegalArgumentException("Row key cannot be null or empty");
-    }
-    if (row.length < Const.SALT_WIDTH() + tsdb.metrics.width()) {
-      throw new IllegalArgumentException("Row key is too short"); 
-    }
-    final byte[] id = Arrays.copyOfRange(
-        row, Const.SALT_WIDTH(), tsdb.metrics.width() + Const.SALT_WIDTH());
-    return tsdb.metrics.getNameAsync(id);
-  }
-  
-  /**
-   * Generates a row key given a TSUID and an absolute timestamp. The timestamp
-   * will be normalized to an hourly base time. If salting is enabled then
-   * empty salt bytes will be prepended to the key and must be filled in later.
-   * @param tsdb The TSDB to use for fetching tag widths
-   * @param tsuid The TSUID to use for the key
-   * @param timestamp An absolute time from which we generate the row base time
-   * @return A row key for use in fetching data from OpenTSDB
-   * @throws IllegalArgumentException if the TSUID is too short, i.e. doesn't
-   * contain a metric
-   * @since 2.0
-   */
-  public static byte[] rowKeyFromTSUID(final TSDB tsdb, final byte[] tsuid, 
-      final long timestamp) {
-    if (tsuid.length < tsdb.metrics.width()) {
-      throw new IllegalArgumentException("TSUID appears to be missing the metric");
-    }
-    final long base_time;
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-    }
-    final byte[] row = 
-        new byte[Const.SALT_WIDTH() + tsuid.length + Const.TIMESTAMP_BYTES];
-    System.arraycopy(tsuid, 0, row, Const.SALT_WIDTH(), tsdb.metrics.width());
-    Bytes.setInt(row, (int) base_time, Const.SALT_WIDTH() + tsdb.metrics.width());
-    System.arraycopy(tsuid, tsdb.metrics.width(), row, 
-        Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES, 
-        tsuid.length - tsdb.metrics.width());
-    RowKey.prefixKeyWithSalt(row);
-    return row;
+  private static String getKeyField(final byte[] key, int field) {
+    String keyStr = new String(key, CHARSET);
+    return keyStr.split("\0")[field];
   }
 
   /**
@@ -138,23 +78,12 @@ final public class RowKey {
    * @param row_key The pre-allocated row key to write the salt to
    * @since 2.2
    */
-  public static void prefixKeyWithSalt(final byte[] row_key) {
+  public static void prefixKeyWithSalt(final byte[] row_key, final byte[] metric, final byte[] tags) {
     if (Const.SALT_WIDTH() > 0) {
-      if (row_key.length < (Const.SALT_WIDTH() + TSDB.metrics_width()) || 
-        (Bytes.memcmp(row_key, new byte[Const.SALT_WIDTH() + TSDB.metrics_width()], 
-            Const.SALT_WIDTH(), TSDB.metrics_width()) == 0)) {
-        // ^ Don't salt the global annotation row, leave it at zero
-        return;
-      }
-      final int tags_start = Const.SALT_WIDTH() + TSDB.metrics_width() + 
-          Const.TIMESTAMP_BYTES;
-      
-      // we want the metric and tags, not the timestamp
       final byte[] salt_base = 
-          new byte[row_key.length - Const.SALT_WIDTH() - Const.TIMESTAMP_BYTES];
-      System.arraycopy(row_key, Const.SALT_WIDTH(), salt_base, 0, TSDB.metrics_width());
-      System.arraycopy(row_key, tags_start,salt_base, TSDB.metrics_width(), 
-          row_key.length - tags_start);
+          new byte[metric.length + tags.length];
+      System.arraycopy(metric, 0, salt_base, 0, metric.length);
+      System.arraycopy(tags,   0, salt_base, metric.length, tags.length);
       int modulo = Arrays.hashCode(salt_base) % Const.SALT_BUCKETS();
       if (modulo < 0) {
         // make sure we return a positive salt.
@@ -247,8 +176,12 @@ final public class RowKey {
    */
   static byte[] rowKeyTemplate(final TSDB tsdb, final byte[] metric,
       final byte[] tags) {
-    int row_size = (Const.SALT_WIDTH() + metric.length + Const.TIMESTAMP_BYTES 
-        + tags.length);
+    int row_size = (Const.SALT_WIDTH() +
+                    metric.length +
+                    field_delim.length +
+                    Const.TIMESTAMP_BYTES +
+                    field_delim.length +
+                    tags.length);
     final byte[] row = new byte[row_size];
 
     short pos = (short) Const.SALT_WIDTH();
