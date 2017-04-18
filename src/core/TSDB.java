@@ -27,7 +27,6 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.hbase.async.AppendRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
@@ -633,15 +632,8 @@ public final class TSDB {
         RowKey.prefixKeyWithSalt(row);
 
         Deferred<Object> result = null;
-        if (config.enable_appends()) {
-          final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
-          final AppendRequest point = new AppendRequest(table, row, FAMILY, 
-              AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
-          result = client.append(point);
-        } else {
-          final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);
-          result = client.put(point);
-        }
+        final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);
+        result = client.put(point);
 
         // Count all added datapoints, not just those that came in through PUT rpc
         // Will there be others? Well, something could call addPoint programatically right?

@@ -409,17 +409,11 @@ public class SaltScanner {
                   dps_pre_filter += (kv.qualifier().length / 2);
                 }
               }
-            } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-              // with appends we don't have a good rough estimate as the length
-              // can vary widely with the value length variability. Therefore we
-              // have to iterate.
-              int idx = 0;
-              int qlength = 0;
-              while (idx < kv.value().length) {
-                qlength = Internal.getQualifierLength(kv.value(), idx);
-                idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-                ++dps_pre_filter;
-              }
+            } else {
+                 throw new IllegalDataException(
+                     "Invalid qualifier"
+                   + " found from scanner (" + scanner + ")! " + row + " qualifier "
+                   + " for metric " + metric + " has an odd number of bytes ");
             }
           }
           
@@ -538,17 +532,11 @@ public class SaltScanner {
               dps_post_filter += (kv.qualifier().length / 2);
             }
           }
-        } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-          // with appends we don't have a good rough estimate as the length
-          // can vary widely with the value length variability. Therefore we
-          // have to iterate.
-          int idx = 0;
-          int qlength = 0;
-          while (idx < kv.value().length) {
-            qlength = Internal.getQualifierLength(kv.value(), idx);
-            idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-            ++dps_post_filter;
-          }
+        } else {
+                 throw new IllegalDataException(
+                     "Invalid qualifier"
+                   + " found from scanner (" + scanner + ")! " + row + " qualifier "
+                   + " for metric " + metric + " has an odd number of bytes ");
         }
       }
 
