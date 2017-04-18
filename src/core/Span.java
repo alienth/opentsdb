@@ -19,9 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.UniqueId;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Bytes.ByteMap;
@@ -41,10 +38,6 @@ final class Span implements DataPoints {
   /** All the rows in this span. */
   private final ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
 
-  /** A list of annotations for this span. We can't lazily initialize since we
-   * have to pass a collection to the compaction queue */
-  private final ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
-  
   /** 
    * Whether or not the rows have been sorted. This should be toggled by the
    * first call to an iterator method
@@ -149,22 +142,6 @@ final class Span implements DataPoints {
     return 0;
   }
 
-  public List<String> getTSUIDs() {
-    if (rows.size() < 1) {
-      return null;
-    }
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key, 
-        TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    final List<String> tsuids = new ArrayList<String>(1);
-    tsuids.add(UniqueId.uidToString(tsuid));
-    return tsuids;
-  }
-  
-  /** @return a list of annotations associated with this span. May be empty */
-  public List<Annotation> getAnnotations() {
-    return annotations;
-  }
-  
   /**
    * Adds a compacted row to the span, merging with an existing RowSeq or 
    * creating a new one if necessary. 

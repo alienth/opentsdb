@@ -26,7 +26,6 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
 
 import org.hbase.async.Bytes.ByteMap;

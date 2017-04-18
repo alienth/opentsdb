@@ -23,7 +23,6 @@ import org.hbase.async.Bytes.ByteMap;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.SeekableView;
-import net.opentsdb.meta.Annotation;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -150,11 +149,6 @@ public class PostAggregatedDataPoints implements DataPoints {
     return base_data_points.getTSUIDs();
   }
 
-  @Override
-  public List<Annotation> getAnnotations() {
-    return base_data_points.getAnnotations();
-  }
-  
   @Override
   public ByteMap<byte[]> getTagUids() {
     return base_data_points.getTagUids();

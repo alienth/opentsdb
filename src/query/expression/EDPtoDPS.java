@@ -28,8 +28,6 @@ import net.opentsdb.core.MutableDataPoint;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.ByteSet;
 
 /**
@@ -159,12 +157,6 @@ public class EDPtoDPS implements DataPoints {
 
   @Override
   public List<String> getTSUIDs() {
-    // TODO Fix it up
-    return Collections.emptyList();
-  }
-
-  @Override
-  public List<Annotation> getAnnotations() {
     // TODO Fix it up
     return Collections.emptyList();
   }

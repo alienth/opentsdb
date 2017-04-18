@@ -29,8 +29,6 @@ import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
 
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Pair;
 
 /** Helper functions to deal with tags. */

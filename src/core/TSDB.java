@@ -17,7 +17,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
@@ -42,22 +40,12 @@ import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
 
-import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.StorageExceptionHandler;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdFilterPlugin;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.MetaDataCache;
-import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
@@ -105,14 +93,6 @@ public final class TSDB {
   /** Timer used for various tasks such as idle timeouts or query timeouts */
   private final HashedWheelTimer timer;
   
-  /**
-   * Row keys that need to be compacted.
-   * Whenever we write a new data point to a row, we add the row key to this
-   * set.  Every once in a while, the compaction thread will go through old
-   * row keys and will read re-compact them.
-   */
-  private final CompactionQueue compactionq;
-
   /** Search indexer to use if configure */
   private SearchPlugin search = null;
 
@@ -122,21 +102,14 @@ public final class TSDB {
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
   
-  /** Optional plugin for handling meta data caching and updating */
-  private MetaDataCache meta_cache = null;
-  
   /** Plugin for dealing with data points that can't be stored */
   private StorageExceptionHandler storage_exception_handler = null;
 
   /** A filter plugin for allowing or blocking time series */
   private WriteableDataPointFilterPlugin ts_filter;
   
-  /** A filter plugin for allowing or blocking UIDs */
-  private UniqueIdFilterPlugin uid_filter;
-  
   /** Writes rejected by the filter */ 
   private final AtomicLong rejected_dps = new AtomicLong();
-  private final AtomicLong rejected_aggregate_dps = new AtomicLong();
   
   /** Datapoints Added */
   private static final AtomicLong datapoints_added = new AtomicLong();
@@ -203,7 +176,6 @@ public final class TSDB {
     // }
     // tag_names = new UniqueId(this, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH, false);
     // tag_values = new UniqueId(this, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH, false);
-    compactionq = new CompactionQueue(this);
     
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
@@ -340,26 +312,6 @@ public final class TSDB {
       rt_publisher = null;
     }
     
-    // load the meta cache plugin if enabled
-    if (config.getBoolean("tsd.core.meta.cache.enable")) {
-      meta_cache = PluginLoader.loadSpecificPlugin(
-          config.getString("tsd.core.meta.cache.plugin"), MetaDataCache.class);
-      if (meta_cache == null) {
-        throw new IllegalArgumentException(
-            "Unable to locate meta cache plugin: " + 
-            config.getString("tsd.core.meta.cache.plugin"));
-      }
-      try {
-        meta_cache.initialize(this);
-      } catch (Exception e) {
-        throw new RuntimeException(
-            "Failed to initialize meta cache plugin", e);
-      }
-      LOG.info("Successfully initialized meta cache plugin [" + 
-          meta_cache.getClass().getCanonicalName() + "] version: " 
-          + meta_cache.version());
-    }
-    
     // load the storage exception plugin if enabled
     if (config.getBoolean("tsd.core.storage_exception_handler.enable")) {
       storage_exception_handler = PluginLoader.loadSpecificPlugin(
@@ -402,26 +354,6 @@ public final class TSDB {
           + ts_filter.version());
     }
     
-    // UID Filter
-    if (config.getBoolean("tsd.uidfilter.enable")) {
-      uid_filter = PluginLoader.loadSpecificPlugin(
-          config.getString("tsd.uidfilter.plugin"), 
-          UniqueIdFilterPlugin.class);
-      if (uid_filter == null) {
-        throw new IllegalArgumentException(
-            "Unable to locate UID filter plugin plugin: " + 
-            config.getString("tsd.uidfilter.plugin"));
-      }
-      try {
-        uid_filter.initialize(this);
-      } catch (Exception e) {
-        throw new RuntimeException(
-            "Failed to initialize UID filter plugin", e);
-      }
-      LOG.info("Successfully initialized UID filter plugin [" + 
-          uid_filter.getClass().getCanonicalName() + "] version: " 
-          + uid_filter.version());
-    }
   }
   
   /** 
@@ -477,14 +409,6 @@ public final class TSDB {
    */
   public WriteableDataPointFilterPlugin getTSfilter() {
     return ts_filter;
-  }
-  
-  /** 
-   * @return The UID filter object, may be null. 
-   * @since 2.3 
-   */
-  public UniqueIdFilterPlugin getUidFilter() {
-    return uid_filter;
   }
   
   /**
@@ -705,7 +629,6 @@ public final class TSDB {
     collector.record("hbase.region_clients.idle_closed",
         stats.idleConnectionsClosed());
 
-    compactionq.collectStats(collector);
     // Collect Stats from Plugins
     if (startup != null) {
       try {
@@ -747,14 +670,7 @@ public final class TSDB {
         collector.clearExtraTag("plugin");
       }
     }
-    if (uid_filter != null) {
-      try {
-        collector.addExtraTag("plugin", "uidFilter");
-        uid_filter.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }
-    }
+
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
@@ -986,7 +902,6 @@ public final class TSDB {
               AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
           result = client.append(point);
         } else {
-          scheduleForCompaction(row, (int) base_time);
           final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);
           result = client.put(point);
         }
@@ -1057,18 +972,7 @@ public final class TSDB {
    * recoverable by retrying, some are not.
    */
   public Deferred<Object> flush() throws HBaseException {
-    final class HClientFlush implements Callback<Object, ArrayList<Object>> {
-      public Object call(final ArrayList<Object> args) {
-        return client.flush();
-      }
-      public String toString() {
-        return "flush HBase client";
-      }
-    }
-
-    return config.enable_compactions() && compactionq != null
-      ? compactionq.flush().addCallback(new HClientFlush())
-      : client.flush();
+    return client.flush();
   }
 
   /**
@@ -1159,10 +1063,6 @@ public final class TSDB {
       }
     }
     
-    if (config.enable_compactions()) {
-      LOG.info("Flushing compaction queue");
-      deferreds.add(compactionq.flush().addCallback(new CompactCB()));
-    }
     if (startup != null) {
       LOG.info("Shutting down startup plugin: " +
               startup.getClass().getCanonicalName());
@@ -1178,11 +1078,6 @@ public final class TSDB {
           rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
     }
-    if (meta_cache != null) {
-      LOG.info("Shutting down meta cache plugin: " + 
-          meta_cache.getClass().getCanonicalName());
-      deferreds.add(meta_cache.shutdown());
-    }
     if (storage_exception_handler != null) {
       LOG.info("Shutting down storage exception handler plugin: " + 
           storage_exception_handler.getClass().getCanonicalName());
@@ -1192,11 +1087,6 @@ public final class TSDB {
       LOG.info("Shutting down time series filter plugin: " + 
           ts_filter.getClass().getCanonicalName());
       deferreds.add(ts_filter.shutdown());
-    }
-    if (uid_filter != null) {
-      LOG.info("Shutting down UID filter plugin: " + 
-          uid_filter.getClass().getCanonicalName());
-      deferreds.add(uid_filter.shutdown());
     }
     
     // wait for plugins to shutdown before we close the client
@@ -1408,17 +1298,6 @@ public final class TSDB {
   }
 
   /**
-   * Index the given timeseries meta object via the configured search plugin
-   * @param meta The meta data object to index
-   * @since 2.0
-   */
-  public void indexTSMeta(final TSMeta meta) {
-    if (search != null) {
-      search.indexTSMeta(meta).addErrback(new PluginError());
-    }
-  }
-  
-  /**
    * Delete the timeseries meta object from the search index
    * @param tsuid The TSUID to delete
    * @since 2.0
@@ -1427,65 +1306,6 @@ public final class TSDB {
     if (search != null) {
       search.deleteTSMeta(tsuid).addErrback(new PluginError());
     }
-  }
-  
-  /**
-   * Index the given UID meta object via the configured search plugin
-   * @param meta The meta data object to index
-   * @since 2.0
-   */
-  public void indexUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.indexUIDMeta(meta).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Delete the UID meta object from the search index
-   * @param meta The UID meta object to delete
-   * @since 2.0
-   */
-  public void deleteUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.deleteUIDMeta(meta).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Index the given Annotation object via the configured search plugin
-   * @param note The annotation object to index
-   * @since 2.0
-   */
-  public void indexAnnotation(final Annotation note) {
-    if (search != null) {
-      search.indexAnnotation(note).addErrback(new PluginError());
-    }
-    if( rt_publisher != null ) {
-    	rt_publisher.publishAnnotation(note);
-    }
-  }
-  
-  /**
-   * Delete the annotation object from the search index
-   * @param note The annotation object to delete
-   * @since 2.0
-   */
-  public void deleteAnnotation(final Annotation note) {
-    if (search != null) {
-      search.deleteAnnotation(note).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Processes the TSMeta through all of the trees if configured to do so
-   * @param meta The meta data to process
-   * @since 2.0
-   */
-  public Deferred<Boolean> processTSMetaThroughTrees(final TSMeta meta) {
-    if (config.enable_tree_processing()) {
-      return TreeBuilder.processAllTrees(this, meta);
-    }
-    return Deferred.fromResult(false);
   }
   
   /**
@@ -1551,29 +1371,6 @@ public final class TSDB {
     return timer;
   }
   
-  // ------------------ //
-  // Compaction helpers //
-  // ------------------ //
-
-  final KeyValue compact(final ArrayList<KeyValue> row, 
-      List<Annotation> annotations) {
-    return compactionq.compact(row, annotations);
-  }
-
-  /**
-   * Schedules the given row key for later re-compaction.
-   * Once this row key has become "old enough", we'll read back all the data
-   * points in that row, write them back to HBase in a more compact fashion,
-   * and delete the individual data points.
-   * @param row The row key to re-compact later.  Will not be modified.
-   * @param base_time The 32-bit unsigned UNIX timestamp.
-   */
-  final void scheduleForCompaction(final byte[] row, final int base_time) {
-    if (config.enable_compactions()) {
-      compactionq.add(row);
-    }
-  }
-
   // ------------------------ //
   // HBase operations helpers //
   // ------------------------ //

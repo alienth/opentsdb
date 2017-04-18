@@ -19,8 +19,6 @@ import org.hbase.async.Bytes.ByteMap;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.meta.Annotation;
-
 /**
  * Represents a read-only sequence of continuous data points.
  * <p>
@@ -50,13 +48,6 @@ public interface DataPoints extends Iterable<DataPoint> {
    * @return A non-{@code null} map of tag names (keys), tag values (values).
    */
   Map<String, String> getTags();
-  
-  /**
-   * Returns the tags associated with these data points.
-   * @return A non-{@code null} map of tag names (keys), tag values (values).
-   * @since 1.2
-   */
-  Deferred<Map<String, String>> getTagsAsync();
   
   /**
    * Returns a map of tag pairs as UIDs.
@@ -111,13 +102,6 @@ public interface DataPoints extends Iterable<DataPoint> {
    * @return an empty list if there were no results, otherwise a list of TSUIDs
    */
   public List<String> getTSUIDs();
-  
-  /**
-   * Compiles the annotations for each span into a new array list
-   * @return Null if none of the spans had any annotations, a list if one or
-   * more were found
-   */
-  public List<Annotation> getAnnotations();
   
   /**
    * Returns the number of data points.

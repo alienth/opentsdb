@@ -23,8 +23,6 @@ import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
 
-import net.opentsdb.meta.Annotation;
-
 /**
  * Receives new data points and stores them in compacted form. No points are 
  * written until {@code flushNow} is called. This ensures that true batch 
@@ -39,10 +37,14 @@ final class BatchedDataPoints implements WritableDataPoints {
   private final TSDB tsdb;
 
   /**
-   * The row key. Optional salt + 3 bytes for the metric name, 4 bytes for the 
-   * base timestamp, 6 bytes per tag (3 for the name, 3 for the value).
+   * The row key. Optional salt + metric + timestamp + tags.
    */
   private byte[] row_key;
+
+  /**
+   * The name of the metric we're working with.
+   */
+  private String metric;
 
   /**
    * Track the last timestamp written for this series.
@@ -87,6 +89,7 @@ final class BatchedDataPoints implements WritableDataPoints {
   BatchedDataPoints(final TSDB tsdb, final String metric, 
       final Map<String, String> tags) {
     this.tsdb = tsdb;
+    this.metric = metric;
     setSeries(metric, tags);
   }
 
@@ -357,11 +360,6 @@ final class BatchedDataPoints implements WritableDataPoints {
   @Override
   public List<String> getTSUIDs() {
     return Collections.emptyList();
-  }
-
-  @Override
-  public List<Annotation> getAnnotations() {
-    return null;
   }
 
   @Override

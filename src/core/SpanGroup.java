@@ -27,8 +27,6 @@ import org.hbase.async.Bytes.ByteMap;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.meta.Annotation;
-
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
  * <p>
@@ -52,9 +50,6 @@ import net.opentsdb.meta.Annotation;
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
 final class SpanGroup implements DataPoints {
-  /** Annotations */
-  private final ArrayList<Annotation> annotations;
-
   /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long start_time;
 
@@ -226,7 +221,6 @@ final class SpanGroup implements DataPoints {
             final long query_start,
             final long query_end,
             final int query_index) {
-     annotations = new ArrayList<Annotation>();
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
          start_time * 1000 : start_time;
      this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
@@ -267,19 +261,6 @@ final class SpanGroup implements DataPoints {
 
     if (span.size() == 0) {
       // copy annotations that are in the time range
-      for (Annotation annot : span.getAnnotations()) {
-        long annot_start = annot.getStartTime();
-        if ((annot_start & Const.SECOND_MASK) == 0) {
-          annot_start *= 1000;
-        }
-        long annot_end = annot.getStartTime();
-        if ((annot_end & Const.SECOND_MASK) == 0) {
-          annot_end *= 1000;
-        }
-        if (annot_end >= start && annot_start <= end) {
-          annotations.add(annot);
-        }
-      }
     } else {
       long first_dp = span.timestamp(0);
       if ((first_dp & Const.SECOND_MASK) == 0) {
@@ -294,7 +275,6 @@ final class SpanGroup implements DataPoints {
       }
       if (first_dp <= end && last_dp >= start) {
         this.spans.add(span);
-        annotations.addAll(span.getAnnotations());
       }
     }
   }
@@ -453,15 +433,6 @@ final class SpanGroup implements DataPoints {
     return tsuids;
   }
   
-  /**
-   * Compiles the annotations for each span into a new array list
-   * @return Null if none of the spans had any annotations, a list if one or
-   * more were found
-   */
-  public List<Annotation> getAnnotations() {
-    return annotations.isEmpty() ? null : annotations;
-  }
-
   public int size() {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in

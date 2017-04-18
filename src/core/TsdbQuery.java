@@ -119,9 +119,6 @@ final class TsdbQuery implements Query {
   /** Downsampling specification to use, if any (can be {@code null}). */
   private DownsamplingSpecification downsampler;
 
-  /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
-  private List<String> tsuids;
-  
   /** An index that links this query to the original sub query */
   private int query_index;
   
@@ -1041,9 +1038,7 @@ final class TsdbQuery implements Query {
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
         : (int) getScanEndTimeSeconds(), tsdb.table, TSDB.FAMILY());
-    if (tsuids != null && !tsuids.isEmpty()) {
-      createAndSetTSUIDFilter(scanner);
-    } else if (filters.size() > 0) {
+    if (filters.size() > 0) {
       createAndSetFilter(scanner);
     }
     return scanner;
@@ -1147,20 +1142,6 @@ final class TsdbQuery implements Query {
         : (int) getScanEndTimeSeconds()));
   }
   
-  /**
-   * Sets the server-side regexp filter on the scanner.
-   * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
-   * storage from returning irrelevant rows.
-   * @param scanner The scanner on which to add the filter.
-   * @since 2.0
-   */
-  private void createAndSetTSUIDFilter(final Scanner scanner) {
-    if (regex == null) {
-      regex = QueryUtil.getRowKeyTSUIDRegex(tsuids);
-    }
-    scanner.setKeyRegexp(regex, CHARSET);
-  }
-  
   @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
@@ -1168,24 +1149,18 @@ final class TsdbQuery implements Query {
        .append(getStartTime())
        .append(", end_time=")
        .append(getEndTime());
-    if (tsuids != null && !tsuids.isEmpty()) {
-      buf.append(", tsuids=");
-      for (final String tsuid : tsuids) {
-        buf.append(tsuid).append(",");
+    buf.append(", metric=" + metric);
+    buf.append(", filters=[");
+    for (final Iterator<TagVFilter> it = filters.iterator(); it.hasNext(); ) {
+      buf.append(it.next());
+      if (it.hasNext()) {
+        buf.append(',');
       }
-    } else {
-      buf.append(", metric=" + metric);
-      buf.append(", filters=[");
-      for (final Iterator<TagVFilter> it = filters.iterator(); it.hasNext(); ) {
-        buf.append(it.next());
-        if (it.hasNext()) {
-          buf.append(',');
-        }
-      }
-      buf.append("], rate=").append(rate)
-        .append(", aggregator=").append(aggregator)
-        .append(", group_bys=(");
     }
+    buf.append("], rate=").append(rate)
+      .append(", aggregator=").append(aggregator)
+      .append(", group_bys=(");
+
     buf.append("))");
     return buf.toString();
   }

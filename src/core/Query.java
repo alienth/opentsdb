@@ -19,8 +19,6 @@ import org.hbase.async.HBaseException;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.uid.NoSuchUniqueName;
-
 /**
  * A query to retrieve data from the TSDB.
  */
@@ -90,13 +88,10 @@ public interface Query {
   * actual values.
   * @param rate_options If included specifies additional options that are used
   * when calculating and graph rate values
-  * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
-  * does not exist.
   * @since 2.0
   */
   void setTimeSeries(String metric, Map<String, String> tags, 
-                    Aggregator function, boolean rate, RateOptions rate_options) 
-      throws NoSuchUniqueName;
+                    Aggregator function, boolean rate, RateOptions rate_options);
     
   /**
    * Sets the time series to the query.
@@ -109,7 +104,7 @@ public interface Query {
    * does not exist.
    */
   void setTimeSeries(String metric, Map<String, String> tags,
-                     Aggregator function, boolean rate) throws NoSuchUniqueName;
+                     Aggregator function, boolean rate);
 
   /**
    * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the

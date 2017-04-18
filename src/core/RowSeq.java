@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import net.opentsdb.meta.Annotation;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Bytes.ByteMap;
@@ -306,10 +304,6 @@ final class RowSeq implements DataPoints {
     return Tags.getTagUids(key);
   }
   
-  public Deferred<Map<String, String>> getTagsAsync() {
-    return Tags.getTagsAsync(tsdb, key);
-  }
-
   /** @return an empty list since aggregated tags cannot exist on a single row */
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
@@ -329,12 +323,6 @@ final class RowSeq implements DataPoints {
     return Collections.emptyList();
   }
   
-  /** @return null since annotations are stored at the SpanGroup level. They
-   * are filtered when a row is compacted */ 
-  public List<Annotation> getAnnotations() {
-    return Collections.emptyList();
-  }
-
   /** @return the number of data points in this row 
    * Unfortunately we must walk the entire array as there may be a mix of
    * second and millisecond timestamps */

@@ -29,7 +29,6 @@ import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Bytes.ByteMap;
 
-import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
 
 /**
@@ -341,16 +340,6 @@ final class IncomingDataPoints implements WritableDataPoints {
           .addCallbackDeferring(new WriteCB());
     }
     return Deferred.fromResult(true).addCallbackDeferring(new WriteCB());
-  }
-
-  private void grow() {
-    // We can't have more than 1 value per second, so MAX_TIMESPAN values.
-    final int new_size = Math.min(size * 2, Const.MAX_TIMESPAN);
-    if (new_size == size) {
-      throw new AssertionError("Can't grow " + this + " larger than " + size);
-    }
-    values = Arrays.copyOf(values, new_size);
-    qualifiers = Arrays.copyOf(qualifiers, new_size);
   }
 
   /** Extracts the base timestamp from the row key. */
