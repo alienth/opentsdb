@@ -38,16 +38,6 @@ public interface DataPoints extends Iterable<DataPoint> {
   Map<String, String> getTags();
   
   /**
-   * Returns a map of tag pairs as UIDs.
-   * When used on a span or row, it returns the tag set. When used on a span 
-   * group it will return only the tag pairs that are common across all 
-   * time series in the group.
-   * @return A potentially empty map of tagk to tagv pairs as UIDs
-   * @since 2.2
-   */
-  ByteMap<byte[]> getTagUids();
-
-  /**
    * Returns the tags associated with some but not all of the data points.
    * <p>
    * When this instance represents the aggregation of multiple time series

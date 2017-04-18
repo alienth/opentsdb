@@ -21,7 +21,6 @@ import java.util.NoSuchElementException;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
-import org.hbase.async.Bytes.ByteMap;
 
 import com.stumbleupon.async.Deferred;
 
@@ -31,9 +30,6 @@ import com.stumbleupon.async.Deferred;
  * This class stores a continuous sequence of {@link RowSeq}s in memory.
  */
 final class Span implements DataPoints {
-
-  /** The {@link TSDB} instance we belong to. */
-  private final TSDB tsdb;
 
   /** All the rows in this span. */
   private final ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
@@ -48,8 +44,7 @@ final class Span implements DataPoints {
    * Default constructor.
    * @param tsdb The TSDB to which we belong
    */
-  Span(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  Span() {
   }
 
   /** @throws IllegalStateException if the span doesn't have any rows */
@@ -61,16 +56,19 @@ final class Span implements DataPoints {
 
   /** 
    * @return the name of the metric associated with the rows in this span
+   * @throws IllegalStateException if the span was empty
    */
   public String metricName() {
+    checkNotEmpty();
     return rows.get(0).metricName();
   }
   
   /**
    * @return the list of tag pairs for the rows in this span
-   * @throws IllegalStateException if the span was empty - TODO - Do I need to preserve this?
+   * @throws IllegalStateException if the span was empty
    */
   public Map<String, String> getTags() {
+    checkNotEmpty();
     return rows.get(0).getTags();
   }
 
@@ -118,24 +116,18 @@ final class Span implements DataPoints {
       // Verify that we have the same metric id and tags.
       final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
-      final short metric_width = tsdb.metrics.width();
-      final short tags_offset = 
-          (short) (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES);
-      final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;
       if (key.length != last.key.length) {
         error = "row key length mismatch";
-      } else if (
-          Bytes.memcmp(key, last.key, Const.SALT_WIDTH(), metric_width) != 0) {
-        error = "metric ID mismatch";
-      } else if (Bytes.memcmp(key, last.key, tags_offset, tags_bytes) != 0) {
+      } else if (RowKey.metricName(key) != RowKey.metricName(last.key)) {
+        error = "metric mismatch";
+      } else if (RowKey.getTagString(key) != RowKey.getTagString(last.key)) {
         error = "tags mismatch";
       }
       if (error != null) {
         throw new IllegalArgumentException(error + ". "
             + "This Span's last row key is " + Arrays.toString(last.key)
-            + " whereas the row key being added is " + Arrays.toString(key)
-            + " and metric_width=" + metric_width);
+            + " whereas the row key being added is " + Arrays.toString(key));
       }
       last_ts = last.timestamp(last.size() - 1);  // O(n)
     }

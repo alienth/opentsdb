@@ -239,7 +239,7 @@ public class SaltScanner {
 
         Span datapoints = spans.get(kv.key());
         if (datapoints == null) {
-          datapoints = new Span(tsdb);
+          datapoints = new Span();
           spans.put(kv.key(), datapoints);
         }
 

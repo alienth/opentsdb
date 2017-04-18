@@ -726,7 +726,7 @@ final class TsdbQuery implements Query {
          
          Span datapoints = spans.get(key);
          if (datapoints == null) {
-           datapoints = new Span(tsdb);
+           datapoints = new Span();
            spans.put(key, datapoints);
          }
          final long compaction_start = DateTime.nanoTime();
