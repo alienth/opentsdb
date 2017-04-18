@@ -106,7 +106,7 @@ final class DumpSeries {
           for (final ArrayList<KeyValue> row : rows) {
             buf.setLength(0);
             final byte[] key = row.get(0).key();
-            final long base_time = Internal.baseTime(tsdb, key);
+            final long base_time = Internal.baseTime(key);
             final String metric = Internal.metricName(key);
             // Print the row key.
             if (!importformat) {

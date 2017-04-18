@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -106,8 +105,8 @@ public final class Internal {
   }
 
   /** Extracts the timestamp from a row key.  */
-  public static long baseTime(final TSDB tsdb, final byte[] row) {
-    return Bytes.getUnsignedInt(row, Const.SALT_WIDTH() + TSDB.metrics_width());
+  public static long baseTime(final byte[] row) {
+    return RowKey.baseTime(row);
   }
   
   /** @return the time normalized to an hour boundary in epoch seconds */
@@ -119,17 +118,6 @@ public final class Internal {
     } else {
       return (timestamp - (timestamp % Const.MAX_TIMESPAN));
     }
-  }
-  
-  /**
-   * Sets the time in a raw data table row key
-   * @param row The row to modify
-   * @param base_time The base time to store
-   * @since 2.3
-   */
-  public static void setBaseTime(final byte[] row, int base_time) {
-    Bytes.setInt(row, base_time, Const.SALT_WIDTH() + 
-        TSDB.metrics_width());
   }
   
   /** @see Tags#getTags */
@@ -445,7 +433,7 @@ public final class Internal {
       }
       final Cell cell = cells.get(cells.size() - 1);
       final IncomingDataPoint dp = new IncomingDataPoint();
-      final long base_time = baseTime(tsdb, row.get(0).key());
+      final long base_time = baseTime(row.get(0).key());
       dp.setTimestamp(getTimestampFromQualifier(cell.qualifier(), base_time));
       dp.setValue(cell.parseValue().toString());
       return dp;

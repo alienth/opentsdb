@@ -409,7 +409,7 @@ public final class Tags {
    * @throws NoSuchUniqueId if the row key contained an invalid ID (unlikely).
    */
   static Map<String, String> getTags(final TSDB tsdb,
-                                     final byte[] row) throws NoSuchUniqueId {
+                                     final byte[] row) {
     try {
       return getTagsAsync(tsdb, row).joinUninterruptibly();
     } catch (RuntimeException e) {

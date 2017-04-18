@@ -36,13 +36,44 @@ final public class RowKey {
    * @throws NoSuchUniqueId if the UID could not resolve to a string
    */
   static String metricName(final byte[] key) {
-    return getKeyField(key, 0);
+    return getKeyField(key, metric_field);
   }
 
+  // TODO Const this
+  static short metric_field = 0;
+  static short ts_field = 1;
+  static short tags_field = 2;
+
+  /** Extracts the timestamp from a row key.  */
+  static long baseTime(final byte[] row) {
+    return Bytes.getUnsignedInt(getKeyFieldBytes(row, ts_field));
+  }
+ 
   private static String getKeyField(final byte[] key, int field) {
     String keyStr = new String(key, CHARSET);
     return keyStr.split("\0")[field];
   }
+
+  private static byte[] getKeyFieldBytes(final byte[] key, int field) {
+    short delimCount = 0;
+    int fieldStart = 0;              // inclusive start index of the field
+    int fieldStop = key.length - 1;  // exclusive end index of the field
+
+    for (short i = 0; i < key.length; i++) {
+      if (key[i] == field_delim) {
+        delimCount++;
+        if (delimCount == field) {
+          fieldStop = i;
+          break;
+        } else {
+          fieldStart = i;
+        }
+      }
+    }
+
+    return Arrays.copyOfRange(key, fieldStart, fieldStop);
+  }
+
 
   /**
    * Returns the byte array for the given salt id
@@ -138,7 +169,7 @@ final public class RowKey {
   final static Charset CHARSET = TSDB.CHARSET;
   final static byte[] tag_delim = ":".getBytes(CHARSET);
   final static byte[] tag_equals = "=".getBytes(CHARSET);
-  final static byte[] field_delim = { 0x00 };
+  final static byte field_delim = 0x00;
 
 
   static byte[] tagsToBytes(Map<String, String> tagm) {
@@ -178,9 +209,9 @@ final public class RowKey {
       final byte[] tags) {
     int row_size = (Const.SALT_WIDTH() +
                     metric.length +
-                    field_delim.length +
+                    1 +
                     Const.TIMESTAMP_BYTES +
-                    field_delim.length +
+                    1 +
                     tags.length);
     final byte[] row = new byte[row_size];
 
@@ -188,11 +219,11 @@ final public class RowKey {
 
     copyInRowKey(row, pos, metric);
     pos += metric.length;
-    copyInRowKey(row, pos, field_delim);
+    copyInRowKey(row, pos, new byte[]{field_delim});
     pos += 1;
 
     pos += Const.TIMESTAMP_BYTES;
-    copyInRowKey(row, pos, field_delim);
+    copyInRowKey(row, pos, new byte[]{field_delim});
     pos += 1;
 
     copyInRowKey(row, pos, tags);
