@@ -15,11 +15,10 @@ package net.opentsdb.core;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.hbase.async.Bytes;
-
-import com.stumbleupon.async.Deferred;
 
 /** Helper functions to deal with the row key. */
 final public class RowKey {
@@ -51,7 +50,7 @@ final public class RowKey {
  
   private static String getKeyField(final byte[] key, int field) {
     String keyStr = new String(key, CHARSET);
-    return keyStr.split("\0")[field];
+    return keyStr.split(field_delim_str)[field];
   }
 
   private static byte[] getKeyFieldBytes(final byte[] key, int field) {
@@ -167,8 +166,11 @@ final public class RowKey {
   }
 
   final static Charset CHARSET = TSDB.CHARSET;
-  final static byte[] tag_delim = ":".getBytes(CHARSET);
-  final static byte[] tag_equals = "=".getBytes(CHARSET);
+  final static String tag_delim_str = ":";
+  final static byte[] tag_delim = tag_delim_str.getBytes(CHARSET);
+  final static String tag_equals_str = "=";
+  final static byte[] tag_equals = tag_equals_str.getBytes(CHARSET);
+  final static String field_delim_str = "\0";
   final static byte field_delim = 0x00;
 
 
@@ -192,6 +194,21 @@ final public class RowKey {
       pos += tagVal.length;
     }
     return tags;
+  }
+
+  static Map<String, String> getTags(byte[] key) {
+    final String tagStr = getTagString(key);
+    final Map<String, String> tagm = new HashMap<String, String>();
+
+    for (String tag : tagStr.split(tag_delim_str)) {
+      String[] kv = tag.split(tag_equals_str, 1);
+      tagm.put(kv[0], kv[1]);
+    }
+    return tagm;
+  }
+
+  static String getTagString(byte[] key) {
+    return getKeyField(key, tags_field);
   }
 
   static byte[] rowKeyTemplate(final TSDB tsdb, final String metricStr,

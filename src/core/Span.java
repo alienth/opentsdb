@@ -61,56 +61,19 @@ final class Span implements DataPoints {
 
   /** 
    * @return the name of the metric associated with the rows in this span
-   * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the row key UID did not exist
    */
   public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<String> metricNameAsync() {
-    checkNotEmpty();
-    return rows.get(0).metricNameAsync();
-  }
-
-  @Override
-  public byte[] metricUID() {
-    checkNotEmpty();
-    return rows.get(0).metricUID();
+    return rows.get(0).metricName();
   }
   
   /**
    * @return the list of tag pairs for the rows in this span
-   * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the any of the tagk/v UIDs did not exist
+   * @throws IllegalStateException if the span was empty - TODO - Do I need to preserve this?
    */
   public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+    return rows.get(0).getTags();
   }
 
-  public Deferred<Map<String, String>> getTagsAsync() {
-    checkNotEmpty();
-    return rows.get(0).getTagsAsync();
-  }
-  
-  @Override
-  public ByteMap<byte[]> getTagUids() {
-    checkNotEmpty();
-    return rows.get(0).getTagUids();
-  }
-  
   /** @return an empty list since aggregated tags cannot exist on a single span */
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
@@ -177,7 +140,7 @@ final class Span implements DataPoints {
       last_ts = last.timestamp(last.size() - 1);  // O(n)
     }
 
-    final RowSeq rowseq = new RowSeq(tsdb);
+    final RowSeq rowseq = new RowSeq();
     rowseq.setRow(row);
     sorted = false;
     if (last_ts >= rowseq.timestamp(0)) {

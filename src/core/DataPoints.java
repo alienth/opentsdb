@@ -32,18 +32,6 @@ public interface DataPoints extends Iterable<DataPoint> {
   String metricName();
   
   /**
-   * Returns the name of the series.
-   * @since 1.2
-   */
-  Deferred<String> metricNameAsync();
-  
-  /**
-   * @return the metric UID
-   * @since 2.3
-   */
-  byte[] metricUID();
-
-  /**
    * Returns the tags associated with these data points.
    * @return A non-{@code null} map of tag names (keys), tag values (values).
    */
@@ -96,12 +84,6 @@ public interface DataPoints extends Iterable<DataPoint> {
    * @since 2.3
    */
   List<byte[]> getAggregatedTagUids();
-  
-  /**
-   * Returns a list of unique TSUIDs contained in the results
-   * @return an empty list if there were no results, otherwise a list of TSUIDs
-   */
-  public List<String> getTSUIDs();
   
   /**
    * Returns the number of data points.

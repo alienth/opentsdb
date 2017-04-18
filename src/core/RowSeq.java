@@ -36,9 +36,6 @@ import com.stumbleupon.async.Deferred;
  */
 final class RowSeq implements DataPoints {
 
-  /** The {@link TSDB} instance we belong to. */
-  private final TSDB tsdb;
-
   /** First row key. */
   byte[] key;
 
@@ -59,8 +56,7 @@ final class RowSeq implements DataPoints {
    * Constructor.
    * @param tsdb The TSDB we belong to.
    */
-  RowSeq(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  RowSeq() {
   }
 
   /**
@@ -267,38 +263,13 @@ final class RowSeq implements DataPoints {
   }
 
   public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+    return RowKey.metricName(key);
   }
 
-  public Deferred<String> metricNameAsync() {
-    if (key == null) {
-      throw new IllegalStateException("the row key is null!");
-    }
-    return RowKey.metricNameAsync(tsdb, key);
-  }
-  
-  @Override
-  public byte[] metricUID() {
-    return Arrays.copyOfRange(key, Const.SALT_WIDTH(), 
-        Const.SALT_WIDTH() + TSDB.metrics_width());
-  }
-  
   public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+    return RowKey.getTags(key);
   }
-  
+
   @Override
   public ByteMap<byte[]> getTagUids() {
     return Tags.getTagUids(key);
@@ -363,7 +334,7 @@ final class RowSeq implements DataPoints {
 
   /** Extracts the base timestamp from the row key. */
   long baseTime() {
-    return Bytes.getUnsignedInt(key, Const.SALT_WIDTH() + tsdb.metrics.width());
+    return RowKey.baseTime(key);
   }
 
   /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
