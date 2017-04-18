@@ -101,7 +101,7 @@ public class TagVWildcardFilter extends TagVFilter {
       has_prefix = false;
     }
     if (actual.indexOf('*') > 0) {
-      components = Tags.splitString(actual, '*');
+      components = actual.split("*");
     } else {
       components = new String[1];
       components[0] = actual;

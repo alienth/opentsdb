@@ -42,37 +42,6 @@ public final class Tags {
   }
 
   /**
-   * Optimized version of {@code String#split} that doesn't use regexps.
-   * This function works in O(5n) where n is the length of the string to
-   * split.
-   * @param s The string to split.
-   * @param c The separator to use to split the string.
-   * @return A non-null, non-empty array.
-   */
-  public static String[] splitString(final String s, final char c) {
-    final char[] chars = s.toCharArray();
-    int num_substrings = 1;
-    for (final char x : chars) {
-      if (x == c) {
-        num_substrings++;
-      }
-    }
-    final String[] result = new String[num_substrings];
-    final int len = chars.length;
-    int start = 0;  // starting index in chars of the current substring.
-    int pos = 0;    // current index in chars.
-    int i = 0;      // number of the current substring.
-    for (; pos < len; pos++) {
-      if (chars[pos] == c) {
-        result[i++] = new String(chars, start, pos - start);
-        start = pos + 1;
-      }
-    }
-    result[i] = new String(chars, start, pos - start);
-    return result;
-  }
-
-  /**
    * Parses a tag into a HashMap.
    * @param tags The HashMap into which to store the tag.
    * @param tag A String of the form "tag=value".
@@ -82,7 +51,7 @@ public final class Tags {
    */
   public static void parse(final HashMap<String, String> tags,
                            final String tag) {
-    final String[] kv = splitString(tag, '=');
+    final String[] kv = tag.split("=");
     if (kv.length != 2 || kv[0].length() <= 0 || kv[1].length() <= 0) {
       throw new IllegalArgumentException("invalid tag: " + tag);
     }
@@ -117,7 +86,7 @@ public final class Tags {
       return;
     }
     
-    final String[] kv = splitString(tag, '=');
+    final String[] kv = tag.split("=");
     if (kv.length != 2 || kv[0].length() <= 0 || kv[1].length() <= 0) {
       throw new IllegalArgumentException("invalid tag: " + tag);
     }
@@ -145,8 +114,7 @@ public final class Tags {
       return metric.substring(0, len - 2);
     }
     // substring the tags out of "foo{a=b,...,x=y}" and parse them.
-    for (final String tag : splitString(metric.substring(curly + 1, len - 1),
-                                        ',')) {
+    for (final String tag : metric.substring(curly + 1, len - 1).split(",")) {
       try {
         parse(tags, tag);
       } catch (IllegalArgumentException e) {
@@ -187,8 +155,7 @@ public final class Tags {
       return metric.substring(0, len - 2);
     }
     // substring the tags out of "foo{a=b,...,x=y}" and parse them.
-    for (final String tag : splitString(metric.substring(curly + 1, len - 1),
-           ',')) {
+    for (final String tag : metric.substring(curly + 1, len - 1).split(",")) {
     try {
       parse(tags, tag);
     } catch (IllegalArgumentException e) {
@@ -235,8 +202,7 @@ public final class Tags {
     final HashMap<String, String> filter_map = new HashMap<String, String>();
     if (close != metric.length() - 1) { // "foo{...}{tagk=filter}" 
       final int filter_bracket = metric.lastIndexOf('{');
-      for (final String filter : splitString(metric.substring(filter_bracket + 1, 
-          metric.length() - 1), ',')) {
+      for (final String filter : metric.substring(filter_bracket + 1, metric.length() - 1).split(",")) {
         if (filter.isEmpty()) {
           break;
         }
@@ -252,7 +218,7 @@ public final class Tags {
     }
     
     // substring the tags out of "foo{a=b,...,x=y}" and parse them.
-    for (final String tag : splitString(metric.substring(curly + 1, close), ',')) {
+    for (final String tag : metric.substring(curly + 1, close).split(",")) {
       try {
         if (tag.isEmpty() && close != metric.length() - 1){
           break;

@@ -618,7 +618,7 @@ final class QueryRpc implements HttpRpc {
     // m is of the following forms:
     // agg:[interval-agg:][rate:]metric[{tag=value,...}]
     // where the parts in square brackets `[' .. `]' are optional.
-    final String[] parts = Tags.splitString(query_string, ':');
+    final String[] parts = query_string.split(":");
     int i = parts.length;
     if (i < 2 || i > 5) {
       throw new BadRequestException("Invalid parameter m=" + query_string + " ("
@@ -673,7 +673,7 @@ final class QueryRpc implements HttpRpc {
     // tsuid queries are of the following forms:
     // agg:[interval-agg:][rate:]tsuid[,s]
     // where the parts in square brackets `[' .. `]' are optional.
-    final String[] parts = Tags.splitString(query_string, ':');
+    final String[] parts = query_string.split(":");
     int i = parts.length;
     if (i < 2 || i > 5) {
       throw new BadRequestException("Invalid parameter m=" + query_string + " ("
@@ -733,8 +733,7 @@ final class QueryRpc implements HttpRpc {
            + spec);
      }
 
-     String[] parts = Tags
-         .splitString(spec.substring(5, spec.length() - 1), ',');
+     String[] parts = spec.substring(5, spec.length() - 1).split(",");
      if (parts.length < 1 || parts.length > 3) {
        throw new BadRequestException(
            "Incorrect number of values in rate options specification, must be " +

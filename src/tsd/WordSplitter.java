@@ -36,7 +36,7 @@ final class WordSplitter extends OneToOneDecoder {
   protected Object decode(final ChannelHandlerContext ctx,
                           final Channel channel,
                           final Object msg) throws Exception {
-    return Tags.splitString(((ChannelBuffer) msg).toString(CHARSET), ' ');
+    return ((ChannelBuffer) msg).toString(CHARSET).split(" ");
   }
 
 }

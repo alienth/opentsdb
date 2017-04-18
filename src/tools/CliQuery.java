@@ -207,7 +207,7 @@ final class CliQuery {
         long counterMax = Long.MAX_VALUE;
         long resetValue = RateOptions.DEFAULT_RESET_VALUE;
         if (args[i].startsWith("counter")) {
-          String[] parts = Tags.splitString(args[i], ',');
+          String[] parts = args[i].split(",");
           if (parts.length >= 2 && parts[1].length() > 0) {
             counterMax = Long.parseLong(parts[1]);
           }
