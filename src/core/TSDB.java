@@ -48,8 +48,6 @@ import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
 import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tools.StartupPlugin;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
@@ -80,22 +78,12 @@ public final class TSDB {
   /** Name of the table where meta data is stored. */
   final byte[] meta_table;
 
-  // /** Unique IDs for the metric names. */
-  // final UniqueId metrics;
-  // /** Unique IDs for the tag names. */
-  // final UniqueId tag_names;
-  // /** Unique IDs for the tag values. */
-  // final UniqueId tag_values;
-
   /** Configuration object for all TSDB components */
   final Config config;
 
   /** Timer used for various tasks such as idle timeouts or query timeouts */
   private final HashedWheelTimer timer;
   
-  /** Search indexer to use if configure */
-  private SearchPlugin search = null;
-
   /** Optional Startup Plugin to use if configured */
   private StartupPlugin startup = null;
 
@@ -143,19 +131,7 @@ public final class TSDB {
       this.client = client;
     }
     
-    // SALT AND UID WIDTHS
-    // Users really wanted this to be set via config instead of having to 
-    // compile. Hopefully they know NOT to change these after writing data.
-    // if (config.hasProperty("tsd.storage.uid.width.metric")) {
-    //   METRICS_WIDTH = config.getShort("tsd.storage.uid.width.metric");
-    // }
-    // if (config.hasProperty("tsd.storage.uid.width.tagk")) {
-    //   TAG_NAME_WIDTH = config.getShort("tsd.storage.uid.width.tagk");
-    // }
-    // if (config.hasProperty("tsd.storage.uid.width.tagv")) {
-    //   TAG_VALUE_WIDTH = config.getShort("tsd.storage.uid.width.tagv");
-    // }
-    if (config.hasProperty("tsd.storage.max_tags")) {
+   if (config.hasProperty("tsd.storage.max_tags")) {
       Const.setMaxNumTags(config.getShort("tsd.storage.max_tags"));
     }
     if (config.hasProperty("tsd.storage.salt.buckets")) {
@@ -169,14 +145,7 @@ public final class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    // if (config.getBoolean("tsd.core.uid.random_metrics")) {
-    //   metrics = new UniqueId(this, uidtable, METRICS_QUAL, METRICS_WIDTH, true);
-    // } else {
-    //   metrics = new UniqueId(this, uidtable, METRICS_QUAL, METRICS_WIDTH, false);
-    // }
-    // tag_names = new UniqueId(this, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH, false);
-    // tag_values = new UniqueId(this, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH, false);
-    
+   
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
@@ -186,14 +155,7 @@ public final class TSDB {
     QueryStats.setEnableDuplicates(
         config.getBoolean("tsd.query.allow_simultaneous_duplicates"));
     
-    // if (config.getBoolean("tsd.core.preload_uid_cache")) {
-    //   final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();
-    //   uid_cache_map.put(METRICS_QUAL.getBytes(CHARSET), metrics);
-    //   uid_cache_map.put(TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
-    //   uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
-    //   UniqueId.preloadUidCache(this, uid_cache_map);
-    // }
-    
+   
     if (config.getString("tsd.core.tag.allow_specialchars") != null) {
       Tags.setAllowSpecialChars(config.getString("tsd.core.tag.allow_specialchars"));
     }
@@ -270,26 +232,6 @@ public final class TSDB {
       throw new RuntimeException("Failed to instantiate filters", e);
     }
 
-    // load the search plugin if enabled
-    if (config.getBoolean("tsd.search.enable")) {
-      search = PluginLoader.loadSpecificPlugin(
-          config.getString("tsd.search.plugin"), SearchPlugin.class);
-      if (search == null) {
-        throw new IllegalArgumentException("Unable to locate search plugin: " + 
-            config.getString("tsd.search.plugin"));
-      }
-      try {
-        search.initialize(this);
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to initialize search plugin", e);
-      }
-      LOG.info("Successfully initialized search plugin [" + 
-          search.getClass().getCanonicalName() + "] version: " 
-          + search.version());
-    } else {
-      search = null;
-    }
-    
     // load the real time publisher plugin if enabled
     if (config.getBoolean("tsd.rtpublisher.enable")) {
       rt_publisher = PluginLoader.loadSpecificPlugin(
@@ -412,77 +354,6 @@ public final class TSDB {
   }
   
   /**
-   * Attempts to find the name for a unique identifier given a type
-   * @param type The type of UID
-   * @param uid The UID to search for
-   * @return The name of the UID object if found
-   * @throws IllegalArgumentException if the type is not valid
-   * @throws NoSuchUniqueId if the UID was not found
-   * @since 2.0
-   */
-  // public Deferred<String> getUidName(final UniqueIdType type, final byte[] uid) {
-  //   if (uid == null) {
-  //     throw new IllegalArgumentException("Missing UID");
-  //   }
-
-  //   switch (type) {
-  //     case METRIC:
-  //       return this.metrics.getNameAsync(uid);
-  //     case TAGK:
-  //       return this.tag_names.getNameAsync(uid);
-  //     case TAGV:
-  //       return this.tag_values.getNameAsync(uid);
-  //     default:
-  //       throw new IllegalArgumentException("Unrecognized UID type");
-  //   }
-  // }
-  
-  // /**
-  //  * Attempts to find the UID matching a given name
-  //  * @param type The type of UID
-  //  * @param name The name to search for
-  //  * @throws IllegalArgumentException if the type is not valid
-  //  * @throws NoSuchUniqueName if the name was not found
-  //  * @since 2.0
-  //  */
-  // public byte[] getUID(final UniqueIdType type, final String name) {
-  //   try {
-  //     return getUIDAsync(type, name).join();
-  //   } catch (NoSuchUniqueName e) {
-  //     throw e;
-  //   } catch (IllegalArgumentException e) {
-  //     throw e;
-  //   } catch (Exception e) {
-  //     LOG.error("Unexpected exception", e);
-  //     throw new RuntimeException(e);
-  //   }
-  // }
-  
-  /**
-   * Attempts to find the UID matching a given name
-   * @param type The type of UID
-   * @param name The name to search for
-   * @throws IllegalArgumentException if the type is not valid
-   * @throws NoSuchUniqueName if the name was not found
-   * @since 2.1
-   */
-  // public Deferred<byte[]> getUIDAsync(final UniqueIdType type, final String name) {
-  //   if (name == null || name.isEmpty()) {
-  //     throw new IllegalArgumentException("Missing UID name");
-  //   }
-  //   switch (type) {
-  //     case METRIC:
-  //       return metrics.getIdAsync(name);
-  //     case TAGK:
-  //       return tag_names.getIdAsync(name);
-  //     case TAGV:
-  //       return tag_values.getIdAsync(name);
-  //     default:
-  //       throw new IllegalArgumentException("Unrecognized UID type");
-  //   }
-  // }
-  
-  /**
    * Verifies that the data and UID tables exist in HBase and optionally the
    * tree and meta data tables if the user has enabled meta tracking or tree
    * building
@@ -509,84 +380,15 @@ public final class TSDB {
     return Deferred.group(checks);
   }
   
-  /** Number of cache hits during lookups involving UIDs. */
-  // public int uidCacheHits() {
-  //   return (metrics.cacheHits() + tag_names.cacheHits()
-  //           + tag_values.cacheHits());
-  // }
-
-  // /** Number of cache misses during lookups involving UIDs. */
-  // public int uidCacheMisses() {
-  //   return (metrics.cacheMisses() + tag_names.cacheMisses()
-  //           + tag_values.cacheMisses());
-  // }
-
-  // /** Number of cache entries currently in RAM for lookups involving UIDs. */
-  // public int uidCacheSize() {
-  //   return (metrics.cacheSize() + tag_names.cacheSize()
-  //           + tag_values.cacheSize());
-  // }
-
   /**
    * Collects the stats and metrics tracked by this instance.
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
-    // final byte[][] kinds = { 
-    //     METRICS_QUAL.getBytes(CHARSET), 
-    //     TAG_NAME_QUAL.getBytes(CHARSET), 
-    //     TAG_VALUE_QUAL.getBytes(CHARSET) 
-    //   };
-    try {
-      // final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
-      //   .joinUninterruptibly();
-      
-      // collectUidStats(metrics, collector);
-      // if (config.getBoolean("tsd.core.uid.random_metrics")) {
-      //   collector.record("uid.ids-used", 0, "kind=" + METRICS_QUAL);
-      //   collector.record("uid.ids-available", 0, "kind=" + METRICS_QUAL);
-      // } else {
-      //   collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
-      //       "kind=" + METRICS_QUAL);
-      //   collector.record("uid.ids-available", 
-      //       (Internal.getMaxUnsignedValueOnBytes(metrics.width()) - 
-      //           used_uids.get(METRICS_QUAL)), "kind=" + METRICS_QUAL);
-      // }
-      
-      // collectUidStats(tag_names, collector);
-      // collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL), 
-      //     "kind=" + TAG_NAME_QUAL);
-      // collector.record("uid.ids-available", 
-      //     (Internal.getMaxUnsignedValueOnBytes(tag_names.width()) - 
-      //         used_uids.get(TAG_NAME_QUAL)), 
-      //     "kind=" + TAG_NAME_QUAL);
-      
-      // collectUidStats(tag_values, collector);
-      // collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL), 
-      //     "kind=" + TAG_VALUE_QUAL);
-      // collector.record("uid.ids-available", 
-      //     (Internal.getMaxUnsignedValueOnBytes(tag_values.width()) - 
-      //         used_uids.get(TAG_VALUE_QUAL)), "kind=" + TAG_VALUE_QUAL);
-      
-    } catch (Exception e) {
-      throw new RuntimeException("Shouldn't be here", e);
-    }
-    
-    // collector.record("uid.filter.rejected", rejected_dps.get(), "kind=raw");
-    // collector.record("uid.filter.rejected", rejected_aggregate_dps.get(), 
-    //     "kind=aggregate");
-
     {
       final Runtime runtime = Runtime.getRuntime();
       collector.record("jvm.ramfree", runtime.freeMemory());
       collector.record("jvm.ramused", runtime.totalMemory());
-    }
-
-    collector.addExtraTag("class", "IncomingDataPoints");
-    try {
-      collector.record("hbase.latency", IncomingDataPoints.putlatency, "method=put");
-    } finally {
-      collector.clearExtraTag("class");
     }
 
     collector.addExtraTag("class", "TSDB");
@@ -646,14 +448,6 @@ public final class TSDB {
         collector.clearExtraTag("plugin");
       }                        
     }
-    if (search != null) {
-      try {
-        collector.addExtraTag("plugin", "search");
-        search.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }                        
-    }
     if (storage_exception_handler != null) {
       try {
         collector.addExtraTag("plugin", "storageExceptionHandler");
@@ -673,62 +467,16 @@ public final class TSDB {
 
   }
 
-  /** Returns a latency histogram for Put RPCs used to store data points. */
-  public Histogram getPutLatencyHistogram() {
-    return IncomingDataPoints.putlatency;
-  }
-
   /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
   public Histogram getScanLatencyHistogram() {
     return TsdbQuery.scanlatency;
   }
 
   /**
-   * Collects the stats for a {@link UniqueId}.
-   * @param uid The instance from which to collect stats.
-   * @param collector The collector to use.
-   */
-  // private static void collectUidStats(final UniqueId uid,
-  //                                     final StatsCollector collector) {
-  //   collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
-  //   collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
-  //   collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
-  //   collector.record("uid.random-collisions", uid.randomIdCollisions(), 
-  //       "kind=" + uid.kind());
-  //   collector.record("uid.rejected-assignments", uid.rejectedAssignments(), 
-  //       "kind=" + uid.kind());
-  // }
-
-  /** @return the width, in bytes, of metric UIDs */
-  // public static short metrics_width() {
-  //   return METRICS_WIDTH;
-  // }
-  
-  /** @return the width, in bytes, of tagk UIDs */
-  // public static short tagk_width() {
-  //   return TAG_NAME_WIDTH;
-  // }
-  
-  /** @return the width, in bytes, of tagv UIDs */
-  // public static short tagv_width() {
-  //   return TAG_VALUE_WIDTH;
-  // }
-  
-  /**
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
   public Query newQuery() {
     return new TsdbQuery(this);
-  }
-
-  /**
-   * Returns a new {@link WritableDataPoints} instance suitable for this TSDB.
-   * <p>
-   * If you want to add a single data-point, consider using {@link #addPoint}
-   * instead.
-   */
-  public WritableDataPoints newDataPoints() {
-    return new IncomingDataPoints(this);
   }
 
   /**
@@ -857,9 +605,9 @@ public final class TSDB {
           + " to metric=" + metricStr + ", tags=" + tagm);
     }
     byte[] metric = metricStr.getBytes(CHARSET);
-    byte[] tags = IncomingDataPoints.tagsToBytes(tagm);
-    IncomingDataPoints.checkMetricAndTags(metricStr, tagm);
-    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    byte[] tags = RowKey.tagsToBytes(tagm);
+    RowKey.checkMetricAndTags(metricStr, tagm);
+    final byte[] row = RowKey.rowKeyTemplate(this, metric, tags);
     final long base_time;
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
     
@@ -907,31 +655,6 @@ public final class TSDB {
           return result;
         }
         
-        // final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
-        //     Const.TIMESTAMP_BYTES);
-        
-        // // if the meta cache plugin is instantiated then tracking goes through it
-        // if (meta_cache != null) {
-        //   meta_cache.increment(tsuid);
-        // } else {
-        //   if (config.enable_tsuid_tracking()) {
-        //     if (config.enable_realtime_ts()) {
-        //       if (config.enable_tsuid_incrementing()) {
-        //         TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
-        //       } else {
-        //         TSMeta.storeIfNecessary(TSDB.this, tsuid);
-        //       }
-        //     } else {
-        //       final PutRequest tracking = new PutRequest(meta_table, tsuid, 
-        //           TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-        //       client.put(tracking);
-        //     }
-        //   }
-        // }
-
-        // if (rt_publisher != null) {
-        //   rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
-        // }
         return result;
       }
       @Override
@@ -1057,11 +780,6 @@ public final class TSDB {
               startup.getClass().getCanonicalName());
       deferreds.add(startup.shutdown());
     }
-    if (search != null) {
-      LOG.info("Shutting down search plugin: " + 
-          search.getClass().getCanonicalName());
-      deferreds.add(search.shutdown());
-    }
     if (rt_publisher != null) {
       LOG.info("Shutting down RT plugin: " + 
           rt_publisher.getClass().getCanonicalName());
@@ -1085,192 +803,7 @@ public final class TSDB {
       : new HClientShutdown().call(null);
   }
 
-  /**
-   * Given a prefix search, returns a few matching metric names.
-   * @param search A prefix to search.
-   */
-  // public List<String> suggestMetrics(final String search) {
-  //   return metrics.suggest(search);
-  // }
-  
-  /**
-   * Given a prefix search, returns matching metric names.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  // public List<String> suggestMetrics(final String search, 
-  //     final int max_results) {
-  //   return metrics.suggest(search, max_results);
-  // }
-
-  /**
-   * Given a prefix search, returns a few matching tag names.
-   * @param search A prefix to search.
-   */
-  // public List<String> suggestTagNames(final String search) {
-  //   return tag_names.suggest(search);
-  // }
-  
-  /**
-   * Given a prefix search, returns matching tagk names.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  // public List<String> suggestTagNames(final String search, 
-  //     final int max_results) {
-  //   return tag_names.suggest(search, max_results);
-  // }
-
-  /**
-   * Given a prefix search, returns a few matching tag values.
-   * @param search A prefix to search.
-   */
-  // public List<String> suggestTagValues(final String search) {
-  //   return tag_values.suggest(search);
-  // }
-  
-  /**
-   * Given a prefix search, returns matching tag values.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  // public List<String> suggestTagValues(final String search, 
-  //     final int max_results) {
-  //   return tag_values.suggest(search, max_results);
-  // }
-
-  /**
-   * Discards all in-memory caches.
-   * @since 1.1
-   */
-  // public void dropCaches() {
-  //   metrics.dropCaches();
-  //   tag_names.dropCaches();
-  //   tag_values.dropCaches();
-  // }
-
-  /**
-   * Attempts to assign a UID to a name for the given type
-   * Used by the UniqueIdRpc call to generate IDs for new metrics, tagks or 
-   * tagvs. The name must pass validation and if it's already assigned a UID,
-   * this method will throw an error with the proper UID. Otherwise if it can
-   * create the UID, it will be returned
-   * @param type The type of uid to assign, metric, tagk or tagv
-   * @param name The name of the uid object
-   * @return A byte array with the UID if the assignment was successful
-   * @throws IllegalArgumentException if the name is invalid or it already 
-   * exists
-   * @since 2.0
-   */
-  // public byte[] assignUid(final String type, final String name) {
-  //   Tags.validateString(type, name);
-  //   if (type.toLowerCase().equals("metric")) {
-  //     try {
-  //       final byte[] uid = this.metrics.getId(name);
-  //       throw new IllegalArgumentException("Name already exists with UID: " +
-  //           UniqueId.uidToString(uid));
-  //     } catch (NoSuchUniqueName nsue) {
-  //       return this.metrics.getOrCreateId(name);
-  //     }
-  //   } else if (type.toLowerCase().equals("tagk")) {
-  //     try {
-  //       final byte[] uid = this.tag_names.getId(name);
-  //       throw new IllegalArgumentException("Name already exists with UID: " +
-  //           UniqueId.uidToString(uid));
-  //     } catch (NoSuchUniqueName nsue) {
-  //       return this.tag_names.getOrCreateId(name);
-  //     }
-  //   } else if (type.toLowerCase().equals("tagv")) {
-  //     try {
-  //       final byte[] uid = this.tag_values.getId(name);
-  //       throw new IllegalArgumentException("Name already exists with UID: " +
-  //           UniqueId.uidToString(uid));
-  //     } catch (NoSuchUniqueName nsue) {
-  //       return this.tag_values.getOrCreateId(name);
-  //     }
-  //   } else {
-  //     LOG.warn("Unknown type name: " + type);
-  //     throw new IllegalArgumentException("Unknown type name");
-  //   }
-  // }
-  
-  /**
-   * Attempts to delete the given UID name mapping from the storage table as
-   * well as the local cache.
-   * @param type The type of UID to delete. Must be "metrics", "tagk" or "tagv"
-   * @param name The name of the UID to delete
-   * @return A deferred to wait on for completion, or an exception if thrown
-   * @throws IllegalArgumentException if the type is invalid
-   * @since 2.2
-   */
-  // public Deferred<Object> deleteUidAsync(final String type, final String name) {
-  //   final UniqueIdType uid_type = UniqueId.stringToUniqueIdType(type);
-  //   switch (uid_type) {
-  //   case METRIC:
-  //     return metrics.deleteAsync(name);
-  //   case TAGK:
-  //     return tag_names.deleteAsync(name);
-  //   case TAGV:
-  //     return tag_values.deleteAsync(name);
-  //   default:
-  //     throw new IllegalArgumentException("Unrecognized UID type: " + uid_type); 
-  //   }
-  // }
-  
-  /**
-   * Attempts to rename a UID from existing name to the given name
-   * Used by the UniqueIdRpc call to rename name of existing metrics, tagks or
-   * tagvs. The name must pass validation. If the UID doesn't exist, the method
-   * will throw an error. Chained IllegalArgumentException is directly exposed
-   * to caller. If the rename was successful, this method returns.
-   * @param type The type of uid to rename, one of metric, tagk and tagv
-   * @param oldname The existing name of the uid object
-   * @param newname The new name to be used on the uid object
-   * @throws IllegalArgumentException if error happened
-   * @since 2.2
-   */
-  // public void renameUid(final String type, final String oldname,
-  //     final String newname) {
-  //   Tags.validateString(type, oldname);
-  //   Tags.validateString(type, newname);
-  //   if (type.toLowerCase().equals("metric")) {
-  //     try {
-  //       this.metrics.getId(oldname);
-  //       this.metrics.rename(oldname, newname);
-  //     } catch (NoSuchUniqueName nsue) {
-  //       throw new IllegalArgumentException("Name(\"" + oldname +
-  //           "\") does not exist");
-  //     }
-  //   } else if (type.toLowerCase().equals("tagk")) {
-  //     try {
-  //       this.tag_names.getId(oldname);
-  //       this.tag_names.rename(oldname, newname);
-  //     } catch (NoSuchUniqueName nsue) {
-  //       throw new IllegalArgumentException("Name(\"" + oldname +
-  //           "\") does not exist");
-  //     }
-  //   } else if (type.toLowerCase().equals("tagv")) {
-  //     try {
-  //       this.tag_values.getId(oldname);
-  //       this.tag_values.rename(oldname, newname);
-  //     } catch (NoSuchUniqueName nsue) {
-  //       throw new IllegalArgumentException("Name(\"" + oldname +
-  //           "\") does not exist");
-  //     }
-  //   } else {
-  //     LOG.warn("Unknown type name: " + type);
-  //     throw new IllegalArgumentException("Unknown type name");
-  //   }
-  // }
-
-  /** @return the name of the UID table as a byte array for client requests */
-  // public byte[] uidTable() {
-  //   return this.uidtable;
-  // }
-  
+ 
   /** @return the name of the data table as a byte array for client requests */
   public byte[] dataTable() {
     return this.table;
@@ -1287,34 +820,6 @@ public final class TSDB {
   }
 
   /**
-   * Delete the timeseries meta object from the search index
-   * @param tsuid The TSUID to delete
-   * @since 2.0
-   */
-  public void deleteTSMeta(final String tsuid) {
-    if (search != null) {
-      search.deleteTSMeta(tsuid).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Executes a search query using the search plugin
-   * @param query The query to execute
-   * @return A deferred object to wait on for the results to be fetched
-   * @throws IllegalStateException if the search plugin has not been enabled or
-   * configured
-   * @since 2.0
-   */
-  public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
-    if (search == null) {
-      throw new IllegalStateException(
-          "Searching has not been enabled on this TSD");
-    }
-    
-    return search.executeQuery(query);
-  }
-  
-  /**
    * Simply logs plugin errors when they're thrown by attaching as an errorback. 
    * Without this, exceptions will just disappear (unless logged by the plugin) 
    * since we don't wait for a result.
@@ -1327,34 +832,7 @@ public final class TSDB {
     }
   }
   
-  /**
-   * Blocks while pre-fetching meta data from the data and uid tables
-   * so that performance improves, particularly with a large number of 
-   * regions and region servers.
-   * @since 2.2
-   */
-  // public void preFetchHBaseMeta() {
-  //   LOG.info("Pre-fetching meta data for all tables");
-  //   final long start = System.currentTimeMillis();
-  //   final ArrayList<Deferred<Object>> deferreds = new ArrayList<Deferred<Object>>();
-  //   deferreds.add(client.prefetchMeta(table));
-  //   deferreds.add(client.prefetchMeta(uidtable));
-    
-  //   // TODO(cl) - meta, tree, etc
-    
-  //   try {
-  //     Deferred.group(deferreds).join();
-  //     LOG.info("Fetched meta data for tables in " + 
-  //         (System.currentTimeMillis() - start) + "ms");
-  //   } catch (InterruptedException e) {
-  //     LOG.error("Interrupted", e);
-  //     Thread.currentThread().interrupt();
-  //     return;
-  //   } catch (Exception e) {
-  //     LOG.error("Failed to prefetch meta for our tables", e);
-  //   }
-  // }
-  
+ 
   /** @return the timer used for various house keeping functions */
   public Timer getTimer() {
     return timer;

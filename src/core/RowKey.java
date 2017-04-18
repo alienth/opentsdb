@@ -12,8 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Map;
 
 import org.hbase.async.Bytes;
 
@@ -203,4 +205,106 @@ final public class RowKey {
       return a.length - b.length;
     }
   }
+
+  final static Charset CHARSET = TSDB.CHARSET;
+  final static byte[] tag_delim = ":".getBytes(CHARSET);
+  final static byte[] tag_equals = "=".getBytes(CHARSET);
+  final static byte[] field_delim = { 0x00 };
+
+
+  static byte[] tagsToBytes(Map<String, String> tagm) {
+    int tag_size = 0;
+    for (final String key : tagm.keySet()) {
+      tag_size += key.getBytes(CHARSET).length + tagm.get(key).getBytes(CHARSET).length;
+    }
+
+    byte[] tags = new byte[tag_size];
+    short pos = 0;
+
+    for (final String key : tagm.keySet()) {
+      final byte[] tagKey = key.getBytes(CHARSET);
+      final byte[] tagVal = tagm.get(key).getBytes(CHARSET);
+      copyInRowKey(tags, pos, tagKey);
+      pos += tagKey.length;
+      copyInRowKey(tags, pos, tag_equals);
+      pos += tag_equals.length;
+      copyInRowKey(tags, pos, tagVal);
+      pos += tagVal.length;
+    }
+    return tags;
+  }
+
+  static byte[] rowKeyTemplate(final TSDB tsdb, final String metricStr,
+      final Map<String, String> tagm) {
+    byte[] tags = tagsToBytes(tagm);
+    byte[] metric = metricStr.getBytes(CHARSET);
+    return rowKeyTemplate(tsdb, metric, tags);
+  }
+
+  /**
+   * Returns a partially initialized row key for this metric and these tags. The
+   * only thing left to fill in is the base timestamp.
+   */
+  static byte[] rowKeyTemplate(final TSDB tsdb, final byte[] metric,
+      final byte[] tags) {
+    int row_size = (Const.SALT_WIDTH() + metric.length + Const.TIMESTAMP_BYTES 
+        + tags.length);
+    final byte[] row = new byte[row_size];
+
+    short pos = (short) Const.SALT_WIDTH();
+
+    copyInRowKey(row, pos, metric);
+    pos += metric.length;
+    copyInRowKey(row, pos, field_delim);
+    pos += 1;
+
+    pos += Const.TIMESTAMP_BYTES;
+    copyInRowKey(row, pos, field_delim);
+    pos += 1;
+
+    copyInRowKey(row, pos, tags);
+
+    return row;
+  }
+
+  /**
+   * Copies the specified byte array at the specified offset in the row key.
+   * 
+   * @param row
+   *          The row key into which to copy the bytes.
+   * @param offset
+   *          The offset in the row key to start writing at.
+   * @param bytes
+   *          The bytes to copy.
+   */
+  private static void copyInRowKey(final byte[] row, final short offset,
+      final byte[] bytes) {
+    System.arraycopy(bytes, 0, row, offset, bytes.length);
+  }
+
+  /**
+   * Validates the given metric and tags.
+   * 
+   * @throws IllegalArgumentException
+   *           if any of the arguments aren't valid.
+   */
+  static void checkMetricAndTags(final String metric,
+      final Map<String, String> tags) {
+    if (tags.size() <= 0) {
+      throw new IllegalArgumentException("Need at least one tag (metric="
+          + metric + ", tags=" + tags + ')');
+    } else if (tags.size() > Const.MAX_NUM_TAGS()) {
+      throw new IllegalArgumentException("Too many tags: " + tags.size()
+          + " maximum allowed: " + Const.MAX_NUM_TAGS() + ", tags: " + tags);
+    }
+
+    Tags.validateString("metric name", metric);
+    for (final Map.Entry<String, String> tag : tags.entrySet()) {
+      Tags.validateString("tag name", tag.getKey());
+      Tags.validateString("tag value", tag.getValue());
+    }
+  }
+
+
+
 }

@@ -43,9 +43,6 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -207,7 +204,7 @@ final class TsdbQuery implements Query {
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
       final Aggregator function,
-      final boolean rate) throws NoSuchUniqueName {
+      final boolean rate) {
     setTimeSeries(metric, tags, function, rate, new RateOptions());
   }
   
@@ -217,7 +214,7 @@ final class TsdbQuery implements Query {
         final Aggregator function,
         final boolean rate,
         final RateOptions rate_options)
-  throws NoSuchUniqueName {
+  {
     if (filters == null) {
       filters = new ArrayList<TagVFilter>(tags.size());
     }
@@ -230,8 +227,6 @@ final class TsdbQuery implements Query {
     } catch (final InterruptedException e) {
       LOG.warn("Interrupted", e);
       Thread.currentThread().interrupt();
-    } catch (final NoSuchUniqueName e) {
-      throw e;
     } catch (final Exception e) {
       if (e instanceof DeferredGroupException) {
         // rollback to the actual case. The DGE missdirects
@@ -325,41 +320,6 @@ final class TsdbQuery implements Query {
     metric = sub_query.getMetric();
     return Deferred.fromResult(null);
 
-    // if we have tsuids set, that takes precedence
-    // if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
-    //   throw new IllegalArgumentException("This fork does not support TSUID queries.");
-    // } else {
-      // /** Triggers the group by resolution if we had filters to resolve */
-      // class FilterCB implements Callback<Object, ArrayList<byte[]>> {
-      //   @Override
-      //   public Object call(final ArrayList<byte[]> results) throws Exception {
-      //     findGroupBys();
-      //     return null;
-      //   }
-      // }
-
-      /** Resolve and group by tags after resolving the metric */
-      // class MetricCB implements Callback<Deferred<Object>, byte[]> {
-      //   @Override
-      //   public Deferred<Object> call(final byte[] uid) throws Exception {
-      //     metric = uid;
-      //     if (filters != null) {
-      //       // final List<Deferred<byte[]>> deferreds = 
-      //       //     new ArrayList<Deferred<byte[]>>(filters.size());
-      //       // for (final TagVFilter filter : filters) {
-      //       //   deferreds.add(filter.resolveTagkName(tsdb));
-      //       // }
-      //       // return Deferred.group(deferreds).addCallback(new FilterCB());
-      //       findGroupBys();
-      //     }
-      //     return Deferred.fromResult(null);
-      //   }
-      // }
-      
-     // fire off the callback chain by resolving the metric first
-      // return tsdb.metrics.getIdAsync(sub_query.getMetric())
-      //     .addCallbackDeferring(new MetricCB());
-    // }
   }
   
   @Override
@@ -698,25 +658,6 @@ final class TsdbQuery implements Query {
                    }
                  }
 
-                 // /** Resolves all of the row key UIDs to their strings for filtering */
-                 // class GetTagsCB implements
-                 //     Callback<Deferred<ArrayList<Boolean>>, Map<String, String>> {
-                 //   @Override
-                 //   public Deferred<ArrayList<Boolean>> call(
-                 //       final Map<String, String> tags) throws Exception {
-                 //     uid_resolve_time += (DateTime.nanoTime() - uid_start);
-                 //     uids_resolved += tags.size();
-                 //     final List<Deferred<Boolean>> matches =
-                 //         new ArrayList<Deferred<Boolean>>(scanner_filters.size());
-
-                 //     for (final TagVFilter filter : scanner_filters) {
-                 //       matches.add(filter.match(tags));
-                 //     }
-                     
-                 //     return Deferred.group(matches);
-                 //   }
-                 // }
-    
                  final Map<String, String> tags = Tags.getTags(keyTags);
 
                  final List<Deferred<Boolean>> matches =
@@ -819,13 +760,6 @@ final class TsdbQuery implements Query {
                QueryStat.SCANNER_TIME, DateTime.nanoTime() - scan_start_time);
 
            // Scanner Stats
-           /* Uncomment when AsyncHBase has this feature:
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.ROWS_FROM_STORAGE, scanner.getRowsFetched());
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.COLUMNS_FROM_STORAGE, scanner.getColumnsFetched());
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.BYTES_FROM_STORAGE, scanner.getBytesFetched()); */
            query_stats.addScannerStat(query_index, index, 
                QueryStat.HBASE_TIME, fetch_time);
            query_stats.addScannerStat(query_index, index, 
@@ -933,68 +867,6 @@ final class TsdbQuery implements Query {
       } else {
         throw new IllegalArgumentException("This fork doesn't support group_by");
       }
-
-  
-      // Maps group value IDs to the SpanGroup for those values. Say we've
-      // been asked to group by two things: foo=* bar=* Then the keys in this
-      // map will contain all the value IDs combinations we've seen. If the
-      // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
-      // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
-      // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
-      // foo=LOL bar=WTF and that the IDs of the tag values are:
-      // LOL=[0, 0, 1] OMG=[0, 0, 4] WTF=[0, 0, 3]
-      // then the map will have two keys:
-      // - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
-      // - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
-      // final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
-      // final short value_width = tsdb.tag_values.width();
-      // final byte[] group = new byte[group_bys.size() * value_width];
-      // for (final Map.Entry<byte[], Span> entry : spans.entrySet()) {
-      //   final byte[] row = entry.getKey();
-      //   byte[] value_id = null;
-      //   int i = 0;
-      //   // TODO(tsuna): The following loop has a quadratic behavior. We can
-      //   // make it much better since both the row key and group_bys are sorted.
-      //   for (final byte[] tag_id : group_bys) {
-      //     value_id = Tags.getValueId(tsdb, row, tag_id);
-      //     if (value_id == null) {
-      //       break;
-      //     }
-      //     System.arraycopy(value_id, 0, group, i, value_width);
-      //     i += value_width;
-      //   }
-      //   if (value_id == null) {
-      //     LOG.error("WTF? Dropping span for row " + Arrays.toString(row)
-      //              + " as it had no matching tag from the requested groups,"
-      //              + " which is unexpected. Query=" + this);
-      //     continue;
-      //   }
-      //   //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
-      //   SpanGroup thegroup = groups.get(group);
-      //   if (thegroup == null) {
-      //     thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
-      //                              getScanEndTimeSeconds(),
-      //                              null, rate, rate_options, aggregator,
-      //                              downsampler,
-      //                              getStartTime(), 
-      //                              getEndTime(),
-      //                              query_index);
-      //     // Copy the array because we're going to keep `group' and overwrite
-      //     // its contents. So we want the collection to have an immutable copy.
-      //     final byte[] group_copy = new byte[group.length];
-      //     System.arraycopy(group, 0, group_copy, 0, group.length);
-      //     groups.put(group_copy, thegroup);
-      //   }
-      //   thegroup.add(entry.getValue());
-      // }
-      // //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
-      // // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
-      // //}
-      // if (query_stats != null) {
-      //   query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
-      // }
-      // return groups.values().toArray(new SpanGroup[groups.size()]);
-    // }
     }
   }
 
@@ -1020,14 +892,6 @@ final class TsdbQuery implements Query {
    * @return A scanner to use for fetching data points
    */
   protected Scanner getScanner(final int salt_bucket) throws HBaseException {
-    // set the metric UID based on the TSUIDs if given, or the metric UID
-    // DEPRECATED
-    // if (tsuids != null && !tsuids.isEmpty()) {
-    //   final String tsuid = tsuids.get(0);
-    //   final String metric_uid = tsuid.substring(0, metric_width * 2);
-    //   metric = UniqueId.stringToUid(metric_uid);
-    // }
-    
     // We search at least one row before and one row after the start & end
     // time we've been given as it's quite likely that the exact timestamp
     // we're looking for is in the middle of a row.  Plus, a number of things
