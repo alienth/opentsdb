@@ -761,12 +761,6 @@ public final class TSDB {
       }
     }
     
-    final class CompactCB implements Callback<Object, ArrayList<Object>> {
-      public Object call(ArrayList<Object> compactions) throws Exception {
-        return null;
-      }
-    }
-    
     if (startup != null) {
       LOG.info("Shutting down startup plugin: " +
               startup.getClass().getCanonicalName());
