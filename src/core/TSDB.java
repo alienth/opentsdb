@@ -80,11 +80,6 @@ public final class TSDB {
 
   /** Charset used to convert Strings to byte arrays and back. */
   public static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  private static final String METRICS_QUAL = "metrics";
-  // private static short METRICS_WIDTH = 3;
-  private static final String TAG_NAME_QUAL = "tagk";
-  // private static short TAG_NAME_WIDTH = 3;
-  private static final String TAG_VALUE_QUAL = "tagv";
   // private static short TAG_VALUE_WIDTH = 3;
 
   /** Client for the HBase cluster to use.  */
@@ -92,8 +87,6 @@ public final class TSDB {
 
   /** Name of the table in which timeseries are stored.  */
   final byte[] table;
-  /** Name of the table in which UID information is stored. */
-  final byte[] uidtable;
   /** Name of the table where tree data is stored. */
   final byte[] treetable;
   /** Name of the table where meta data is stored. */
@@ -200,7 +193,6 @@ public final class TSDB {
     }
     
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
-    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
@@ -616,11 +608,11 @@ public final class TSDB {
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
-    final byte[][] kinds = { 
-        METRICS_QUAL.getBytes(CHARSET), 
-        TAG_NAME_QUAL.getBytes(CHARSET), 
-        TAG_VALUE_QUAL.getBytes(CHARSET) 
-      };
+    // final byte[][] kinds = { 
+    //     METRICS_QUAL.getBytes(CHARSET), 
+    //     TAG_NAME_QUAL.getBytes(CHARSET), 
+    //     TAG_VALUE_QUAL.getBytes(CHARSET) 
+    //   };
     try {
       // final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
       //   .joinUninterruptibly();
@@ -946,10 +938,10 @@ public final class TSDB {
                             tags, flags);
   }
 
-  private Deferred<Object> addPointInternal(final String metric,
+  private Deferred<Object> addPointInternal(final String metricStr,
                                             final long timestamp,
                                             final byte[] value,
-                                            final Map<String, String> tags,
+                                            final Map<String, String> tagm,
                                             final short flags) {
     // we only accept positive unix epoch timestamps in seconds or milliseconds
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
@@ -957,9 +949,11 @@ public final class TSDB {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
-          + " to metric=" + metric + ", tags=" + tags);
+          + " to metric=" + metricStr + ", tags=" + tagm);
     }
-    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    byte[] metric = metricStr.getBytes(CHARSET);
+    byte[] tags = IncomingDataPoints.tagsToBytes(tagm);
+    IncomingDataPoints.checkMetricAndTags(metricStr, tagm);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
     final long base_time;
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
@@ -982,7 +976,7 @@ public final class TSDB {
           return Deferred.fromResult(null);
         }
         
-        Bytes.setInt(row, (int) base_time, metric.getBytes(CHARSET).length + Const.SALT_WIDTH());
+        Bytes.setInt(row, (int) base_time, metric.length + Const.SALT_WIDTH());
         RowKey.prefixKeyWithSalt(row);
 
         Deferred<Object> result = null;
@@ -993,7 +987,7 @@ public final class TSDB {
           result = client.append(point);
         } else {
           scheduleForCompaction(row, (int) base_time);
-          final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+          final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);
           result = client.put(point);
         }
 
@@ -1043,7 +1037,7 @@ public final class TSDB {
     }
     
     if (ts_filter != null && ts_filter.filterDataPoints()) {
-      return ts_filter.allowDataPoint(metric, timestamp, value, tags, flags)
+      return ts_filter.allowDataPoint(metricStr, timestamp, value, tagm, flags)
           .addCallbackDeferring(new WriteCB());
     }
     return Deferred.fromResult(true).addCallbackDeferring(new WriteCB());
@@ -1216,9 +1210,9 @@ public final class TSDB {
    * Given a prefix search, returns a few matching metric names.
    * @param search A prefix to search.
    */
-  public List<String> suggestMetrics(final String search) {
-    return metrics.suggest(search);
-  }
+  // public List<String> suggestMetrics(final String search) {
+  //   return metrics.suggest(search);
+  // }
   
   /**
    * Given a prefix search, returns matching metric names.
@@ -1226,18 +1220,18 @@ public final class TSDB {
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestMetrics(final String search, 
-      final int max_results) {
-    return metrics.suggest(search, max_results);
-  }
+  // public List<String> suggestMetrics(final String search, 
+  //     final int max_results) {
+  //   return metrics.suggest(search, max_results);
+  // }
 
   /**
    * Given a prefix search, returns a few matching tag names.
    * @param search A prefix to search.
    */
-  public List<String> suggestTagNames(final String search) {
-    return tag_names.suggest(search);
-  }
+  // public List<String> suggestTagNames(final String search) {
+  //   return tag_names.suggest(search);
+  // }
   
   /**
    * Given a prefix search, returns matching tagk names.
@@ -1245,18 +1239,18 @@ public final class TSDB {
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestTagNames(final String search, 
-      final int max_results) {
-    return tag_names.suggest(search, max_results);
-  }
+  // public List<String> suggestTagNames(final String search, 
+  //     final int max_results) {
+  //   return tag_names.suggest(search, max_results);
+  // }
 
   /**
    * Given a prefix search, returns a few matching tag values.
    * @param search A prefix to search.
    */
-  public List<String> suggestTagValues(final String search) {
-    return tag_values.suggest(search);
-  }
+  // public List<String> suggestTagValues(final String search) {
+  //   return tag_values.suggest(search);
+  // }
   
   /**
    * Given a prefix search, returns matching tag values.
@@ -1264,20 +1258,20 @@ public final class TSDB {
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestTagValues(final String search, 
-      final int max_results) {
-    return tag_values.suggest(search, max_results);
-  }
+  // public List<String> suggestTagValues(final String search, 
+  //     final int max_results) {
+  //   return tag_values.suggest(search, max_results);
+  // }
 
   /**
    * Discards all in-memory caches.
    * @since 1.1
    */
-  public void dropCaches() {
-    metrics.dropCaches();
-    tag_names.dropCaches();
-    tag_values.dropCaches();
-  }
+  // public void dropCaches() {
+  //   metrics.dropCaches();
+  //   tag_names.dropCaches();
+  //   tag_values.dropCaches();
+  // }
 
   /**
    * Attempts to assign a UID to a name for the given type
@@ -1292,37 +1286,37 @@ public final class TSDB {
    * exists
    * @since 2.0
    */
-  public byte[] assignUid(final String type, final String name) {
-    Tags.validateString(type, name);
-    if (type.toLowerCase().equals("metric")) {
-      try {
-        final byte[] uid = this.metrics.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.metrics.getOrCreateId(name);
-      }
-    } else if (type.toLowerCase().equals("tagk")) {
-      try {
-        final byte[] uid = this.tag_names.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.tag_names.getOrCreateId(name);
-      }
-    } else if (type.toLowerCase().equals("tagv")) {
-      try {
-        final byte[] uid = this.tag_values.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.tag_values.getOrCreateId(name);
-      }
-    } else {
-      LOG.warn("Unknown type name: " + type);
-      throw new IllegalArgumentException("Unknown type name");
-    }
-  }
+  // public byte[] assignUid(final String type, final String name) {
+  //   Tags.validateString(type, name);
+  //   if (type.toLowerCase().equals("metric")) {
+  //     try {
+  //       final byte[] uid = this.metrics.getId(name);
+  //       throw new IllegalArgumentException("Name already exists with UID: " +
+  //           UniqueId.uidToString(uid));
+  //     } catch (NoSuchUniqueName nsue) {
+  //       return this.metrics.getOrCreateId(name);
+  //     }
+  //   } else if (type.toLowerCase().equals("tagk")) {
+  //     try {
+  //       final byte[] uid = this.tag_names.getId(name);
+  //       throw new IllegalArgumentException("Name already exists with UID: " +
+  //           UniqueId.uidToString(uid));
+  //     } catch (NoSuchUniqueName nsue) {
+  //       return this.tag_names.getOrCreateId(name);
+  //     }
+  //   } else if (type.toLowerCase().equals("tagv")) {
+  //     try {
+  //       final byte[] uid = this.tag_values.getId(name);
+  //       throw new IllegalArgumentException("Name already exists with UID: " +
+  //           UniqueId.uidToString(uid));
+  //     } catch (NoSuchUniqueName nsue) {
+  //       return this.tag_values.getOrCreateId(name);
+  //     }
+  //   } else {
+  //     LOG.warn("Unknown type name: " + type);
+  //     throw new IllegalArgumentException("Unknown type name");
+  //   }
+  // }
   
   /**
    * Attempts to delete the given UID name mapping from the storage table as
@@ -1333,19 +1327,19 @@ public final class TSDB {
    * @throws IllegalArgumentException if the type is invalid
    * @since 2.2
    */
-  public Deferred<Object> deleteUidAsync(final String type, final String name) {
-    final UniqueIdType uid_type = UniqueId.stringToUniqueIdType(type);
-    switch (uid_type) {
-    case METRIC:
-      return metrics.deleteAsync(name);
-    case TAGK:
-      return tag_names.deleteAsync(name);
-    case TAGV:
-      return tag_values.deleteAsync(name);
-    default:
-      throw new IllegalArgumentException("Unrecognized UID type: " + uid_type); 
-    }
-  }
+  // public Deferred<Object> deleteUidAsync(final String type, final String name) {
+  //   final UniqueIdType uid_type = UniqueId.stringToUniqueIdType(type);
+  //   switch (uid_type) {
+  //   case METRIC:
+  //     return metrics.deleteAsync(name);
+  //   case TAGK:
+  //     return tag_names.deleteAsync(name);
+  //   case TAGV:
+  //     return tag_values.deleteAsync(name);
+  //   default:
+  //     throw new IllegalArgumentException("Unrecognized UID type: " + uid_type); 
+  //   }
+  // }
   
   /**
    * Attempts to rename a UID from existing name to the given name
@@ -1359,44 +1353,44 @@ public final class TSDB {
    * @throws IllegalArgumentException if error happened
    * @since 2.2
    */
-  public void renameUid(final String type, final String oldname,
-      final String newname) {
-    Tags.validateString(type, oldname);
-    Tags.validateString(type, newname);
-    if (type.toLowerCase().equals("metric")) {
-      try {
-        this.metrics.getId(oldname);
-        this.metrics.rename(oldname, newname);
-      } catch (NoSuchUniqueName nsue) {
-        throw new IllegalArgumentException("Name(\"" + oldname +
-            "\") does not exist");
-      }
-    } else if (type.toLowerCase().equals("tagk")) {
-      try {
-        this.tag_names.getId(oldname);
-        this.tag_names.rename(oldname, newname);
-      } catch (NoSuchUniqueName nsue) {
-        throw new IllegalArgumentException("Name(\"" + oldname +
-            "\") does not exist");
-      }
-    } else if (type.toLowerCase().equals("tagv")) {
-      try {
-        this.tag_values.getId(oldname);
-        this.tag_values.rename(oldname, newname);
-      } catch (NoSuchUniqueName nsue) {
-        throw new IllegalArgumentException("Name(\"" + oldname +
-            "\") does not exist");
-      }
-    } else {
-      LOG.warn("Unknown type name: " + type);
-      throw new IllegalArgumentException("Unknown type name");
-    }
-  }
+  // public void renameUid(final String type, final String oldname,
+  //     final String newname) {
+  //   Tags.validateString(type, oldname);
+  //   Tags.validateString(type, newname);
+  //   if (type.toLowerCase().equals("metric")) {
+  //     try {
+  //       this.metrics.getId(oldname);
+  //       this.metrics.rename(oldname, newname);
+  //     } catch (NoSuchUniqueName nsue) {
+  //       throw new IllegalArgumentException("Name(\"" + oldname +
+  //           "\") does not exist");
+  //     }
+  //   } else if (type.toLowerCase().equals("tagk")) {
+  //     try {
+  //       this.tag_names.getId(oldname);
+  //       this.tag_names.rename(oldname, newname);
+  //     } catch (NoSuchUniqueName nsue) {
+  //       throw new IllegalArgumentException("Name(\"" + oldname +
+  //           "\") does not exist");
+  //     }
+  //   } else if (type.toLowerCase().equals("tagv")) {
+  //     try {
+  //       this.tag_values.getId(oldname);
+  //       this.tag_values.rename(oldname, newname);
+  //     } catch (NoSuchUniqueName nsue) {
+  //       throw new IllegalArgumentException("Name(\"" + oldname +
+  //           "\") does not exist");
+  //     }
+  //   } else {
+  //     LOG.warn("Unknown type name: " + type);
+  //     throw new IllegalArgumentException("Unknown type name");
+  //   }
+  // }
 
   /** @return the name of the UID table as a byte array for client requests */
-  public byte[] uidTable() {
-    return this.uidtable;
-  }
+  // public byte[] uidTable() {
+  //   return this.uidtable;
+  // }
   
   /** @return the name of the data table as a byte array for client requests */
   public byte[] dataTable() {
@@ -1530,27 +1524,27 @@ public final class TSDB {
    * regions and region servers.
    * @since 2.2
    */
-  public void preFetchHBaseMeta() {
-    LOG.info("Pre-fetching meta data for all tables");
-    final long start = System.currentTimeMillis();
-    final ArrayList<Deferred<Object>> deferreds = new ArrayList<Deferred<Object>>();
-    deferreds.add(client.prefetchMeta(table));
-    deferreds.add(client.prefetchMeta(uidtable));
+  // public void preFetchHBaseMeta() {
+  //   LOG.info("Pre-fetching meta data for all tables");
+  //   final long start = System.currentTimeMillis();
+  //   final ArrayList<Deferred<Object>> deferreds = new ArrayList<Deferred<Object>>();
+  //   deferreds.add(client.prefetchMeta(table));
+  //   deferreds.add(client.prefetchMeta(uidtable));
     
-    // TODO(cl) - meta, tree, etc
+  //   // TODO(cl) - meta, tree, etc
     
-    try {
-      Deferred.group(deferreds).join();
-      LOG.info("Fetched meta data for tables in " + 
-          (System.currentTimeMillis() - start) + "ms");
-    } catch (InterruptedException e) {
-      LOG.error("Interrupted", e);
-      Thread.currentThread().interrupt();
-      return;
-    } catch (Exception e) {
-      LOG.error("Failed to prefetch meta for our tables", e);
-    }
-  }
+  //   try {
+  //     Deferred.group(deferreds).join();
+  //     LOG.info("Fetched meta data for tables in " + 
+  //         (System.currentTimeMillis() - start) + "ms");
+  //   } catch (InterruptedException e) {
+  //     LOG.error("Interrupted", e);
+  //     Thread.currentThread().interrupt();
+  //     return;
+  //   } catch (Exception e) {
+  //     LOG.error("Failed to prefetch meta for our tables", e);
+  //   }
+  // }
   
   /** @return the timer used for various house keeping functions */
   public Timer getTimer() {

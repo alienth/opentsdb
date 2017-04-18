@@ -126,9 +126,33 @@ final class IncomingDataPoints implements WritableDataPoints {
   final static byte[] field_delim = { 0x00 };
 
 
-  static byte[] rowKeyTemplate(final TSDB tsdb, final String metric,
-      final Map<String, String> tags) {
-    return rowKeyTemplate(tsdb, metric.getBytes(CHARSET), tags);
+  static byte[] tagsToBytes(Map<String, String> tagm) {
+    int tag_size = 0;
+    for (final String key : tagm.keySet()) {
+      tag_size += key.getBytes(CHARSET).length + tagm.get(key).getBytes(CHARSET).length;
+    }
+
+    byte[] tags = new byte[tag_size];
+    short pos = 0;
+
+    for (final String key : tagm.keySet()) {
+      final byte[] tagKey = key.getBytes(CHARSET);
+      final byte[] tagVal = tagm.get(key).getBytes(CHARSET);
+      copyInRowKey(tags, pos, tagKey);
+      pos += tagKey.length;
+      copyInRowKey(tags, pos, tag_equals);
+      pos += tag_equals.length;
+      copyInRowKey(tags, pos, tagVal);
+      pos += tagVal.length;
+    }
+    return tags;
+  }
+
+  static byte[] rowKeyTemplate(final TSDB tsdb, final String metricStr,
+      final Map<String, String> tagm) {
+    byte[] tags = tagsToBytes(tagm);
+    byte[] metric = metricStr.getBytes(CHARSET);
+    return rowKeyTemplate(tsdb, metric, tags);
   }
 
   /**
@@ -136,14 +160,9 @@ final class IncomingDataPoints implements WritableDataPoints {
    * only thing left to fill in is the base timestamp.
    */
   static byte[] rowKeyTemplate(final TSDB tsdb, final byte[] metric,
-      final Map<String, String> tags) {
-    int tag_size = 0;
-    for (final String key : tags.keySet()) {
-      tag_size += key.getBytes(CHARSET).length + tags.get(key).getBytes(CHARSET).length;
-    }
-
+      final byte[] tags) {
     int row_size = (Const.SALT_WIDTH() + metric.length + Const.TIMESTAMP_BYTES 
-        + tag_size);
+        + tags.length);
     final byte[] row = new byte[row_size];
 
     short pos = (short) Const.SALT_WIDTH();
@@ -157,20 +176,8 @@ final class IncomingDataPoints implements WritableDataPoints {
     copyInRowKey(row, pos, field_delim);
     pos += 1;
 
-    for (final byte[] tag : Tags.resolveOrCreateAll(tsdb, tags)) {
-      copyInRowKey(row, pos, tag);
-      pos += tag.length;
-    }
-    for (final String key : tags.keySet()) {
-      final byte[] tagKey = key.getBytes(CHARSET);
-      final byte[] tagVal = tags.get(key).getBytes(CHARSET);
-      copyInRowKey(row, pos, tagKey);
-      pos += tagKey.length;
-      copyInRowKey(row, pos, tag_equals);
-      pos += tag_equals.length;
-      copyInRowKey(row, pos, tagVal);
-      pos += tagVal.length;
-    }
+    copyInRowKey(row, pos, tags);
+
     return row;
   }
 
