@@ -23,6 +23,8 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -56,8 +58,15 @@ public class QueryUtil {
    */
   public static String getRowKeyUIDRegex(final List<byte[]> group_bys, 
       final ByteMap<byte[][]> row_key_literals) {
-    return getRowKeyUIDRegex(group_bys, row_key_literals, false, null, null);
+    return getRowKeyUIDRegex(group_bys, row_key_literals, false, null, null, null);
   }
+
+  public static String getRowKeyUIDRegex(final List<byte[]> group_bys, 
+      final ByteMap<byte[][]> row_key_literals,
+      List<TagVFilter> filters) {
+    return getRowKeyUIDRegex(group_bys, row_key_literals, false, null, null, filters);
+  }
+ 
   
   /**
    * Crafts a regular expression for scanning over data table rows and filtering
@@ -79,9 +88,15 @@ public class QueryUtil {
       final ByteMap<byte[][]> row_key_literals, 
       final boolean explicit_tags,
       final byte[] fuzzy_key, 
-      final byte[] fuzzy_mask) {
+      final byte[] fuzzy_mask,
+      final List<TagVFilter> filters) {
     if (group_bys != null) {
       Collections.sort(group_bys, Bytes.MEMCMP);
+    }
+    for (final TagVFilter filter : filters) {
+      if (filter instanceof TagVWildcardFilter) {
+        TagVWildcardFilter wildcard = (TagVWildcardFilter) filter;
+      }
     }
     final int prefix_width = Const.SALT_WIDTH() + TSDB.metrics_width() + 
         Const.TIMESTAMP_BYTES;
@@ -190,6 +205,7 @@ public class QueryUtil {
       final Scanner scanner, 
       final List<byte[]> group_bys, 
       final ByteMap<byte[][]> row_key_literals,
+      final List<TagVFilter> filters,
       final int end_time) {
 
     // no-op
@@ -198,7 +214,7 @@ public class QueryUtil {
       return;
     }
 
-    final String regex = getRowKeyUIDRegex(group_bys, row_key_literals);
+    final String regex = getRowKeyUIDRegex(group_bys, row_key_literals, filters);
     final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
         regex.toString(), Const.ASCII_CHARSET);
     if (LOG.isDebugEnabled()) {
@@ -274,7 +290,7 @@ public class QueryUtil {
    * @return A scanner ready for processing.
    */
   public static Scanner getMetricScanner(final TSDB tsdb, final int salt_bucket, 
-      final byte[] metric, final int start, final int stop, 
+      final String metric, final int start, final int stop, 
       final byte[] table, final byte[] family) {
     final short metric_width = TSDB.metrics_width();
     final int metric_salt_width = metric_width + Const.SALT_WIDTH();

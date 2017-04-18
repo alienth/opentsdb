@@ -120,6 +120,8 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   
   /** An optional list of tag value UIDs if the filter matches on literals. */
   protected List<byte[]> tagv_uids;
+
+  protected List<String> tagvs;
   
   /** Whether or not to also group by this filter */
   @JsonProperty
@@ -502,6 +504,11 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   @JsonIgnore
   public List<byte[]> getTagVUids() {
     return tagv_uids == null ? Collections.<byte[]>emptyList() : tagv_uids;
+  }
+
+  @JsonIgnore
+  public List<String> getTagVs() {
+    return tagvs;
   }
   
   /** @return A copy of this filter BEFORE tag resolution, as a new object. */

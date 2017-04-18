@@ -45,6 +45,9 @@ public class TagVWildcardFilter extends TagVFilter {
   /** Whether or not we'll match case */
   protected boolean case_insensitive;
 
+  /** The regexp expression of this filter */
+  public String regexp;
+
   /**
    * The default Ctor that disables case insensitivity
    * @param tagk The tag key to associate with this filter
@@ -108,6 +111,19 @@ public class TagVWildcardFilter extends TagVFilter {
     if (components.length == 1 && components[0].equals("*")) {
       post_scan = false;
     }
+
+    this.regexp = this.toRegex();
+  }
+
+  private String toRegex() {
+    String regex;
+
+    regex = tagk;
+    regex += case_insensitive ? ":(?i)" : ":";
+    regex += this.filter.replaceAll("\\*", ".*?");
+    regex += case_insensitive ? "(?-i)" : "";
+
+    return regex;
   }
 
   @Override

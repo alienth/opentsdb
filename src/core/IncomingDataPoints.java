@@ -12,12 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -118,89 +120,58 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
   }
 
-  /**
-   * Returns a partially initialized row key for this metric and these tags. The
-   * only thing left to fill in is the base timestamp.
-   */
+  final static Charset CHARSET = TSDB.CHARSET;
+  final static byte[] tag_delim = ":".getBytes(CHARSET);
+  final static byte[] tag_equals = "=".getBytes(CHARSET);
+  final static byte[] field_delim = { 0x00 };
+
+
   static byte[] rowKeyTemplate(final TSDB tsdb, final String metric,
       final Map<String, String> tags) {
-    final short metric_width = tsdb.metrics.width();
-    final short tag_name_width = tsdb.tag_names.width();
-    final short tag_value_width = tsdb.tag_values.width();
-    final short num_tags = (short) tags.size();
-
-    int row_size = (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES 
-        + tag_name_width * num_tags + tag_value_width * num_tags);
-    final byte[] row = new byte[row_size];
-
-    short pos = (short) Const.SALT_WIDTH();
-
-    copyInRowKey(row, pos,
-        (tsdb.config.auto_metric() ? tsdb.metrics.getOrCreateId(metric)
-            : tsdb.metrics.getId(metric)));
-    pos += metric_width;
-
-    pos += Const.TIMESTAMP_BYTES;
-
-    for (final byte[] tag : Tags.resolveOrCreateAll(tsdb, tags)) {
-      copyInRowKey(row, pos, tag);
-      pos += tag.length;
-    }
-    return row;
+    return rowKeyTemplate(tsdb, metric.getBytes(CHARSET), tags);
   }
 
   /**
    * Returns a partially initialized row key for this metric and these tags. The
    * only thing left to fill in is the base timestamp.
-   * 
-   * @since 2.0
    */
-  static Deferred<byte[]> rowKeyTemplateAsync(final TSDB tsdb,
-      final String metric, final Map<String, String> tags) {
-    final short metric_width = tsdb.metrics.width();
-    final short tag_name_width = tsdb.tag_names.width();
-    final short tag_value_width = tsdb.tag_values.width();
-    final short num_tags = (short) tags.size();
+  static byte[] rowKeyTemplate(final TSDB tsdb, final byte[] metric,
+      final Map<String, String> tags) {
+    int tag_size = 0;
+    for (final String key : tags.keySet()) {
+      tag_size += key.getBytes(CHARSET).length + tags.get(key).getBytes(CHARSET).length;
+    }
 
-    int row_size = (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES 
-        + tag_name_width * num_tags + tag_value_width * num_tags);
+    int row_size = (Const.SALT_WIDTH() + metric.length + Const.TIMESTAMP_BYTES 
+        + tag_size);
     final byte[] row = new byte[row_size];
 
-    // Lookup or create the metric ID.
-    final Deferred<byte[]> metric_id;
-    if (tsdb.config.auto_metric()) {
-      metric_id = tsdb.metrics.getOrCreateIdAsync(metric, metric, tags);
-    } else {
-      metric_id = tsdb.metrics.getIdAsync(metric);
-    }
+    short pos = (short) Const.SALT_WIDTH();
 
-    // Copy the metric ID at the beginning of the row key.
-    class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
-      public byte[] call(final byte[] metricid) {
-        copyInRowKey(row, (short) Const.SALT_WIDTH(), metricid);
-        return row;
-      }
-    }
+    copyInRowKey(row, pos, metric);
+    pos += metric.length;
+    copyInRowKey(row, pos, field_delim);
+    pos += 1;
 
-    // Copy the tag IDs in the row key.
-    class CopyTagsInRowKeyCB implements
-        Callback<Deferred<byte[]>, ArrayList<byte[]>> {
-      public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
-        short pos = (short) (Const.SALT_WIDTH() + metric_width);
-        pos += Const.TIMESTAMP_BYTES;
-        for (final byte[] tag : tags) {
-          copyInRowKey(row, pos, tag);
-          pos += tag.length;
-        }
-        // Once we've resolved all the tags, schedule the copy of the metric
-        // ID and return the row key we produced.
-        return metric_id.addCallback(new CopyMetricInRowKeyCB());
-      }
-    }
+    pos += Const.TIMESTAMP_BYTES;
+    copyInRowKey(row, pos, field_delim);
+    pos += 1;
 
-    // Kick off the resolution of all tags.
-    return Tags.resolveOrCreateAllAsync(tsdb, metric, tags)
-        .addCallbackDeferring(new CopyTagsInRowKeyCB());
+    for (final byte[] tag : Tags.resolveOrCreateAll(tsdb, tags)) {
+      copyInRowKey(row, pos, tag);
+      pos += tag.length;
+    }
+    for (final String key : tags.keySet()) {
+      final byte[] tagKey = key.getBytes(CHARSET);
+      final byte[] tagVal = tags.get(key).getBytes(CHARSET);
+      copyInRowKey(row, pos, tagKey);
+      pos += tagKey.length;
+      copyInRowKey(row, pos, tag_equals);
+      pos += tag_equals.length;
+      copyInRowKey(row, pos, tagVal);
+      pos += tagVal.length;
+    }
+    return row;
   }
 
   public void setSeries(final String metric, final Map<String, String> tags) {

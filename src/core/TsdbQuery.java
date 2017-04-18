@@ -676,7 +676,7 @@ final class TsdbQuery implements Query {
                // tsuid is metric + tagk/tagvs. Excludes timestamp. Used to prevent repeatedly 
                final String tsuid = 
                    UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
-                   TSDB.metrics_width(), Const.TIMESTAMP_BYTES));
+                   metric_width, Const.TIMESTAMP_BYTES));
                if (skips.contains(tsuid)) {
                  continue;
                }
@@ -998,6 +998,7 @@ final class TsdbQuery implements Query {
       // }
       // return groups.values().toArray(new SpanGroup[groups.size()]);
     // }
+    }
   }
 
   /**

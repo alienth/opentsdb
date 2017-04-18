@@ -82,7 +82,7 @@ public class SaltScanner {
   
   /** The metric this scanner set is dealing with. If a row comes in with a 
    * different metric we toss an exception. This shouldn't happen though. */
-  private final byte[] metric;
+  private final String metric;
   
   /** The TSDB to which we belong */
   private final TSDB tsdb;
@@ -123,7 +123,7 @@ public class SaltScanner {
    * @throws IllegalArgumentException if any required data was missing or
    * we had invalid parameters.
    */
-  public SaltScanner(final TSDB tsdb, final byte[] metric, 
+  public SaltScanner(final TSDB tsdb, final String metric, 
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
                                       final List<TagVFilter> filters) {
@@ -144,7 +144,7 @@ public class SaltScanner {
    * @throws IllegalArgumentException if any required data was missing or
    * we had invalid parameters.
    */
-  public SaltScanner(final TSDB tsdb, final byte[] metric, 
+  public SaltScanner(final TSDB tsdb, final String metric, 
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
                                       final List<TagVFilter> filters,
@@ -173,12 +173,8 @@ public class SaltScanner {
           scanners.size() + " when the salt bucket count is " + 
           Const.SALT_BUCKETS());
     }
-    if (metric == null) {
-      throw new IllegalArgumentException("The metric array was null.");
-    }
-    if (metric.length != TSDB.metrics_width()) {
-      throw new IllegalArgumentException("The metric was too short. It must be " 
-          + TSDB.metrics_width() + "bytes wide.");
+    if (metric == "") {
+      throw new IllegalArgumentException("The metric was null.");
     }
     
     this.scanners = scanners;

@@ -1445,7 +1445,7 @@ public final class UniqueId implements UniqueIdInterface {
    * corrupt such as a salted key when salting is disabled or vice versa.
    */
   public static byte[] getTSUIDFromKey(final byte[] row_key, 
-      final short metric_width, final short timestamp_width) {
+      final int metric_width, final short timestamp_width) {
     int idx = 0;
     // validation
     final int tag_pair_width = TSDB.tagk_width() + TSDB.tagv_width();

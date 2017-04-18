@@ -393,6 +393,16 @@ public final class Tags {
     return true;
   }
 
+  static Map<String, String> getTags(final String keyTags) {
+    final HashMap<String, String> result = new HashMap<String, String>();
+
+    for (String pair : keyTags.split(":")) {
+      String[] kv = pair.split("=");
+      result.put(kv[0], kv[1]);
+    }
+    return result;
+  }
+
   /**
    * Returns the tags stored in the given row key.
    * @param tsdb The TSDB instance to use for Unique ID lookups.
