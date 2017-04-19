@@ -539,9 +539,9 @@ class HttpJsonSerializer extends HttpSerializer {
       public Deferred<Object> call(final Object obj) throws Exception {
         this.uid_start = DateTime.nanoTime();
         
-        resolve_deferreds.add(dps.metricNameAsync()
+        resolve_deferreds.add(Deferred.fromResult(dps.metricName())
             .addCallback(new MetricResolver()));
-        resolve_deferreds.add(dps.getTagsAsync()
+        resolve_deferreds.add(Deferred.fromResult(dps.getTags())
             .addCallback(new TagResolver()));
         resolve_deferreds.add(dps.getAggregatedTagsAsync()
             .addCallback(new AggTagResolver()));

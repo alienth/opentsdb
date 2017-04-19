@@ -328,23 +328,7 @@ final class SpanGroup implements DataPoints {
   }
 
   public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<String> metricNameAsync() {
-    return spans.isEmpty() ? Deferred.fromResult("") : 
-      spans.get(0).metricNameAsync();
-  }
-
-  @Override
-  public byte[] metricUID() {
-    return spans.isEmpty() ? new byte[] {} : spans.get(0).metricUID();
+    return spans.get(0).metricName();
   }
   
   public Map<String, String> getTags() {
@@ -374,14 +358,6 @@ final class SpanGroup implements DataPoints {
     return resolveTags(tag_uids);
   }
 
-  @Override
-  public ByteMap<byte[]> getTagUids() {
-    if (tag_uids == null) {
-      computeTags();
-    }
-    return tag_uids;
-  }
-  
   public List<String> getAggregatedTags() {
     try {
       return getAggregatedTagsAsync().joinUninterruptibly();
@@ -425,14 +401,7 @@ final class SpanGroup implements DataPoints {
     return new ArrayList<byte[]>(aggregated_tag_uids);
   }
 
-  public List<String> getTSUIDs() {
-    List<String> tsuids = new ArrayList<String>(spans.size());
-    for (Span sp : spans) {
-      tsuids.addAll(sp.getTSUIDs());
-    }
-    return tsuids;
-  }
-  
+ 
   public int size() {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in

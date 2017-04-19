@@ -243,12 +243,6 @@ public class SaltScanner {
           spans.put(kv.key(), datapoints);
         }
 
-        if (annotation_map.containsKey(kv.key())) {
-          for (final Annotation note: annotation_map.get(kv.key())) {
-            datapoints.getAnnotations().add(note);
-          }
-          annotation_map.remove(kv.key());
-        }
         try {  
           datapoints.addRow(kv);
           rows++;
@@ -261,17 +255,6 @@ public class SaltScanner {
      
     kv_map.clear();
 
-    for (final byte[] key : annotation_map.keySet()) {
-      Span datapoints = spans.get(key);
-      if (datapoints == null) {
-        datapoints = new Span(tsdb);
-        spans.put(key, datapoints);
-      }
-
-      for (final Annotation note: annotation_map.get(key)) {
-        datapoints.getAnnotations().add(note);
-      }
-    }
 
     if (query_stats != null) {
       query_stats.addStat(query_index, QueryStat.SCANNER_MERGE_TIME, 
@@ -299,8 +282,6 @@ public class SaltScanner {
     private final Scanner scanner;
     private final int index;
     private final List<KeyValue> kvs = new ArrayList<KeyValue>();
-    private final ByteMap<List<Annotation>> annotations = 
-            new ByteMap<List<Annotation>>();
     private final Set<String> skips = Collections.newSetFromMap(
         new ConcurrentHashMap<String, Boolean>());
     private final Set<String> keepers = Collections.newSetFromMap(
