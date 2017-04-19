@@ -14,7 +14,6 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,8 +39,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
-import net.opentsdb.query.expression.ExpressionTree;
-import net.opentsdb.query.expression.Expressions;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
@@ -98,12 +95,11 @@ final class QueryRpc implements HttpRpc {
           "Bad request",
           "/api/query/last not supported in this fork, as it requires metadata");
     } else if (endpoint.toLowerCase().equals("gexp")){
-      handleQuery(tsdb, query, true);
-    } else if (endpoint.toLowerCase().equals("exp")) {
-      handleExpressionQuery(tsdb, query);
-      return;
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Bad request",
+          "/api/query/gexp not supported in this fork.");
     } else {
-      handleQuery(tsdb, query, false);
+      handleQuery(tsdb, query);
     }
   }
 
@@ -114,11 +110,9 @@ final class QueryRpc implements HttpRpc {
    * @param allow_expressions Whether or not expressions should be parsed
    * (based on the endpoint)
    */
-  private void handleQuery(final TSDB tsdb, final HttpQuery query, 
-      final boolean allow_expressions) {
+  private void handleQuery(final TSDB tsdb, final HttpQuery query) {
     final long start = DateTime.currentTimeMillis();
     final TSQuery data_query;
-    final List<ExpressionTree> expressions;
     if (query.method() == HttpMethod.POST) {
       switch (query.apiVersion()) {
       case 0:
@@ -131,10 +125,9 @@ final class QueryRpc implements HttpRpc {
             "Requested API version not implemented", "Version " + 
             query.apiVersion() + " is not implemented");
       }
-      expressions = null;
     } else {
-      expressions = new ArrayList<ExpressionTree>();
-      data_query = parseQuery(tsdb, query, expressions);
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Only POST method supported");
     }
     
     if (query.getAPIMethod() == HttpMethod.DELETE &&
@@ -221,19 +214,7 @@ final class QueryRpc implements HttpRpc {
     class QueriesCB implements Callback<Object, ArrayList<DataPoints[]>> {
       public Object call(final ArrayList<DataPoints[]> query_results) 
         throws Exception {
-        if (allow_expressions) {
-          // process each of the expressions into a new list, then merge it
-          // with the original. This avoids possible recursion loops.
-          final List<DataPoints[]> expression_results = 
-              new ArrayList<DataPoints[]>(expressions.size());
-          // let exceptions bubble up
-          for (final ExpressionTree expression : expressions) {
-            expression_results.add(expression.evaluate(query_results));
-          }
-          results.addAll(expression_results);
-        } else {
-          results.addAll(query_results);
-        }
+        results.addAll(query_results);
         
         /** Simply returns the buffer once serialization is complete and logs it */
         class SendIt implements Callback<Object, ChannelBuffer> {
@@ -283,33 +264,6 @@ final class QueryRpc implements HttpRpc {
   }
   
   /**
-   * Handles an expression query
-   * @param tsdb The TSDB to which we belong
-   * @param query The HTTP query to parse/respond
-   * @since 2.3
-   */
-  private void handleExpressionQuery(final TSDB tsdb, final HttpQuery query) {
-    final net.opentsdb.query.pojo.Query v2_query = 
-        JSON.parseToObject(query.getContent(), net.opentsdb.query.pojo.Query.class);
-    v2_query.validate();
-    final QueryExecutor executor = new QueryExecutor(tsdb, v2_query);
-    executor.execute(query);
-  }
-  
-  
-  /**
-   * Parses a query string legacy style query from the URI
-   * @param tsdb The TSDB we belong to
-   * @param query The HTTP Query for parsing
-   * @return A TSQuery if parsing was successful
-   * @throws BadRequestException if parsing was unsuccessful
-   * @since 2.3
-   */
-  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
-    return parseQuery(tsdb, query, null);
-  }
-  
-  /**
    * Parses a query string legacy style query from the URI
    * @param tsdb The TSDB we belong to
    * @param query The HTTP Query for parsing
@@ -319,8 +273,7 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if parsing was unsuccessful
    * @since 2.3
    */
-  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query,
-      final List<ExpressionTree> expressions) {
+  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
     final TSQuery data_query = new TSQuery();
     
     data_query.setStart(query.getRequiredQueryStringParam("start"));
@@ -328,18 +281,6 @@ final class QueryRpc implements HttpRpc {
     
     if (query.hasQueryStringParam("padding")) {
       data_query.setPadding(true);
-    }
-    
-    if (query.hasQueryStringParam("no_annotations")) {
-      data_query.setNoAnnotations(true);
-    }
-    
-    if (query.hasQueryStringParam("global_annotations")) {
-      data_query.setGlobalAnnotations(true);
-    }
-    
-    if (query.hasQueryStringParam("show_tsuids")) {
-      data_query.setShowTSUIDs(true);
     }
     
     if (query.hasQueryStringParam("ms")) {
@@ -358,42 +299,10 @@ final class QueryRpc implements HttpRpc {
         data_query.setShowSummary(true);
     }
     
-    // handle tsuid queries first
-    if (query.hasQueryStringParam("tsuid")) {
-      final List<String> tsuids = query.getQueryStringParams("tsuid");     
-      for (String q : tsuids) {
-        parseTsuidTypeSubQuery(q, data_query);
-      }
-    }
-    
     if (query.hasQueryStringParam("m")) {
       final List<String> legacy_queries = query.getQueryStringParams("m");      
       for (String q : legacy_queries) {
         parseMTypeSubQuery(q, data_query);
-      }
-    }
-    
-    // TODO - testing out the graphite style expressions here with the "exp" 
-    // param that could stand for experimental or expression ;)
-    if (expressions != null) {
-      if (query.hasQueryStringParam("exp")) {
-        final List<String> uri_expressions = query.getQueryStringParams("exp");
-        final List<String> metric_queries = new ArrayList<String>(
-            uri_expressions.size());
-        // parse the expressions into their trees. If one or more expressions 
-        // are improper then it will toss an exception up
-        expressions.addAll(Expressions.parseExpressions(
-            uri_expressions, data_query, metric_queries));
-        // iterate over each of the parsed metric queries and store it in the
-        // TSQuery list so that we fetch the data for them.
-        for (final String mq: metric_queries) {
-          parseMTypeSubQuery(mq, data_query);
-        }
-      }
-    } else {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Received a request with an expression but at the "
-            + "wrong endpoint: " + query);
       }
     }
     
@@ -448,59 +357,6 @@ final class QueryRpc implements HttpRpc {
         sub_query.setDownsample(parts[x]);
       } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
         sub_query.setExplicitTags(true);
-      }
-    }
-    
-    if (data_query.getQueries() == null) {
-      final ArrayList<TSSubQuery> subs = new ArrayList<TSSubQuery>(1);
-      data_query.setQueries(subs);
-    }
-    data_query.getQueries().add(sub_query);
-  }
-  
-  /**
-   * Parses a "tsuid=..." type query and adds it to the TSQuery.
-   * This will generate a TSSubQuery and add it to the TSQuery if successful
-   * @param query_string The value of the m query string parameter, i.e. what
-   * comes after the equals sign
-   * @param data_query The query we're building
-   * @throws BadRequestException if we are unable to parse the query or it is
-   * missing components
-   */
-  private static void parseTsuidTypeSubQuery(final String query_string, 
-      TSQuery data_query) {
-    if (query_string == null || query_string.isEmpty()) {
-      throw new BadRequestException("The tsuid query string was empty");
-    }
-    
-    // tsuid queries are of the following forms:
-    // agg:[interval-agg:][rate:]tsuid[,s]
-    // where the parts in square brackets `[' .. `]' are optional.
-    final String[] parts = query_string.split(":");
-    int i = parts.length;
-    if (i < 2 || i > 5) {
-      throw new BadRequestException("Invalid parameter m=" + query_string + " ("
-          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
-    }
-    
-    final TSSubQuery sub_query = new TSSubQuery();
-    
-    // the aggregator is first
-    sub_query.setAggregator(parts[0]);
-    
-    i--; // Move to the last part (the metric name).
-    final List<String> tsuid_array = Arrays.asList(parts[i].split(","));
-    sub_query.setTsuids(tsuid_array);
-    
-    // parse out the rate and downsampler 
-    for (int x = 1; x < parts.length - 1; x++) {
-      if (parts[x].toLowerCase().startsWith("rate")) {
-        sub_query.setRate(true);
-        if (parts[x].indexOf("{") >= 0) {
-          sub_query.setRateOptions(QueryRpc.parseRateOptions(true, parts[x]));
-        }
-      } else if (Character.isDigit(parts[x].charAt(0))) {
-        sub_query.setDownsample(parts[x]);
       }
     }
     
