@@ -81,6 +81,7 @@ public final class TSDB {
   /** Timer used for various tasks such as idle timeouts or query timeouts */
   private final HashedWheelTimer timer;
   
+  private final CompactionQueue compactionq;
   /** Optional Startup Plugin to use if configured */
   private StartupPlugin startup = null;
 
@@ -139,6 +140,9 @@ public final class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
+    // Since we don't compact stuff anymore, this is used mostly used in a static fashion.
+    // TODO static-ize this
+    compactionq = new CompactionQueue(this);
    
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
@@ -774,6 +778,14 @@ public final class TSDB {
     return timer;
   }
   
+  // ------------------ //
+  // Compaction helpers //
+  // ------------------ //
+
+  final KeyValue compact(final ArrayList<KeyValue> row) {
+    return compactionq.compact(row);
+  }
+
   // ------------------------ //
   // HBase operations helpers //
   // ------------------------ //
