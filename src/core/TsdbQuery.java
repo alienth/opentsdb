@@ -586,8 +586,6 @@ final class TsdbQuery implements Query {
                  continue;
                }
                if (!keepers.contains(tsuid)) {
-                 // final long uid_start = DateTime.nanoTime();
-                 
                  /** CB to called after all of the UIDs have been resolved */
                  class MatchCB implements Callback<Object, ArrayList<Boolean>> {
                    @Override

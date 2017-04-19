@@ -70,11 +70,6 @@ public class SaltScanner {
   private final Map<Integer, List<KeyValue>> kv_map = 
           new ConcurrentHashMap<Integer, List<KeyValue>>();
   
-  /** Stores annotations from each scanner as it completes */
-  private final Map<byte[], List<Annotation>> annotation_map = 
-          Collections.synchronizedMap(
-              new TreeMap<byte[], List<Annotation>>(new RowKey.SaltCmp()));
-  
   /** A deferred to call with the spans on completion */
   private final Deferred<TreeMap<byte[], Span>> results = 
           new Deferred<TreeMap<byte[], Span>>();
@@ -103,8 +98,8 @@ public class SaltScanner {
   /** Whether or not to delete the queried data */
   private final boolean delete;
   
-  /** A list of filters to iterate over when processing rows */
-  private final List<TagVFilter> filters;
+  /** A list of scanner_filters to iterate over when processing rows */
+  private final List<TagVFilter> scanner_filters;
   
   /** A holder for storing the first exception thrown by a scanner if something
    * goes pear shaped. Make sure to synchronize on this object when checking
@@ -137,7 +132,7 @@ public class SaltScanner {
    * @param scanners A list of HBase scanners, one for each bucket
    * @param spans The span map to store results in
    * @param delete Whether or not to delete the queried data
-   * @param filters A list of filters for processing
+   * @param scanner_filters A list of scanner_filters for processing
    * @param query_stats A stats object for tracking timing
    * @param query_index The index of the sub query in the main query list
    * @throws IllegalArgumentException if any required data was missing or
@@ -146,7 +141,7 @@ public class SaltScanner {
   public SaltScanner(final TSDB tsdb, final String metric, 
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
-                                      final List<TagVFilter> filters,
+                                      final List<TagVFilter> scanner_filters,
                                       final boolean delete,
                                       final QueryStats query_stats,
                                       final int query_index) {
@@ -180,7 +175,7 @@ public class SaltScanner {
     this.spans = spans;
     this.metric = metric;
     this.tsdb = tsdb;
-    this.filters = filters;
+    this.scanner_filters = scanner_filters;
     this.delete = delete;
     this.query_stats = query_stats;
     this.query_index = query_index;
@@ -359,18 +354,20 @@ public class SaltScanner {
 
         // used for UID resolution if a filter is involved
         final List<Deferred<Object>> lookups = 
-            filters != null && !filters.isEmpty() ? 
+            scanner_filters != null && !scanner_filters.isEmpty() ? 
                 new ArrayList<Deferred<Object>>(rows.size()) : null;
         
         rows_pre_filter += rows.size();
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] key = row.get(0).key();
-          if (RowKey.rowKeyContainsMetric(metric, key) != 0) {
+          final String keyMetric = RowKey.metricName(key);
+          final String keyTags = RowKey.getTagString(key);
+          if (keyMetric != metric) {
             close(false);
             handleException(new IllegalDataException(
                    "HBase returned a row that doesn't match"
                    + " our scanner (" + scanner + ")! " + row + " does not start"
-                   + " with " + Arrays.toString(metric) + " on scanner " + this));
+                   + " with " + metric + " on scanner " + this));
             return null;
           }
 
@@ -404,18 +401,15 @@ public class SaltScanner {
           // resolve a few times.
           // TODO - more efficient resolution
           // TODO - byte set instead of a string for the uid may be faster
-          if (filters != null && !filters.isEmpty()) {
+          if (scanner_filters != null && !scanner_filters.isEmpty()) {
             lookups.clear();
-            final String tsuid = 
-                UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
-                TSDB.metrics_width(), Const.TIMESTAMP_BYTES));
+            // tsuid is metric + tagk/tagvs. Excludes timestamp. Used to prevent repeatedly 
+            final String tsuid = keyMetric + keyTags;
             if (skips.contains(tsuid)) {
-              continue;
+               continue;
             }
             if (!keepers.contains(tsuid)) {
-              final long uid_start = DateTime.nanoTime();
-              
-              /** CB to called after all of the UIDs have been resolved */
+             /** CB to called after all of the UIDs have been resolved */
               class MatchCB implements Callback<Object, ArrayList<Boolean>> {
                 @Override
                 public Object call(final ArrayList<Boolean> matches) 
@@ -433,36 +427,23 @@ public class SaltScanner {
                 }
               }
 
-              /** Resolves all of the row key UIDs to their strings for filtering */
-              class GetTagsCB implements
-                  Callback<Deferred<ArrayList<Boolean>>, Map<String, String>> {
-                @Override
-                public Deferred<ArrayList<Boolean>> call(
-                    final Map<String, String> tags) throws Exception {
-                  uid_resolve_time += (DateTime.nanoTime() - uid_start);
-                  uids_resolved += tags.size();
-                  final List<Deferred<Boolean>> matches =
-                      new ArrayList<Deferred<Boolean>>(filters.size());
+              final Map<String, String> tags = RowKey.getTags(key);
 
-                  for (final TagVFilter filter : filters) {
-                    matches.add(filter.match(tags));
-                  }
-                  
-                  return Deferred.group(matches);
-                }
+              final List<Deferred<Boolean>> matches =
+                  new ArrayList<Deferred<Boolean>>(scanner_filters.size());
+              for (final TagVFilter filter : scanner_filters) {
+                 matches.add(filter.match(tags));
               }
- 
-              lookups.add(Tags.getTagsAsync(tsdb, key)
-                  .addCallbackDeferring(new GetTagsCB())
-                  .addBoth(new MatchCB()));
+
+              lookups.add(Deferred.group(matches).addCallback(new MatchCB()));
+              } else {
+                 processRow(key, row);
+              }
             } else {
-              processRow(key, row);
-            }
-          } else {
             processRow(key, row);
           }
         }
-           
+
         // either we need to wait on the UID resolutions or we can go ahead
         // if we don't have filters.
         if (lookups != null && lookups.size() > 0) {
@@ -521,34 +502,12 @@ public class SaltScanner {
         }
       }
 
-      final KeyValue compacted;
-      // let IllegalDataExceptions bubble up so the handler above can close
-      // the scanner
-      final long compaction_start = DateTime.nanoTime();
-      try {
-        final List<Annotation> notes = Lists.newArrayList();
-        compacted = tsdb.compact(row, notes);
-        if (!notes.isEmpty()) {
-          synchronized (annotations) {
-            List<Annotation> map_notes = annotations.get(key);
-            if (map_notes == null) {
-              annotations.put(key, notes);
-            } else {
-              map_notes.addAll(notes);
-            }
-          }
-        }
-      } catch (IllegalDataException idex) {
-        compaction_time += (DateTime.nanoTime() - compaction_start);
-        close(false);
-        handleException(idex);
-        return;
+      Span datapoints = spans.get(key);
+      if (datapoints == null) {
+        datapoints = new Span();
+        spans.put(key, datapoints);
       }
-      compaction_time += (DateTime.nanoTime() - compaction_start);
-      if (compacted != null) { // Can be null if we ignored all KVs.
-        kvs.add(compacted);
-      }
-    }
+     }
   
     /**
      * Closes the scanner and sets the various stats after filtering
