@@ -250,44 +250,6 @@ final class TsdbQuery implements Query {
   }
 
   @Override
-  public void setTimeSeries(final List<String> tsuids,
-      final Aggregator function, final boolean rate) {
-    setTimeSeries(tsuids, function, rate, new RateOptions());
-  }
-  
-  @Override
-  public void setTimeSeries(final List<String> tsuids,
-      final Aggregator function, final boolean rate, 
-      final RateOptions rate_options) {
-    if (tsuids == null || tsuids.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Empty or missing TSUID list not allowed");
-    }
-    
-    String first_metric = "";
-    for (final String tsuid : tsuids) {
-      if (first_metric.isEmpty()) {
-        first_metric = tsuid.substring(0, TSDB.metrics_width() * 2)
-          .toUpperCase();
-        continue;
-      }
-      
-      final String metric = tsuid.substring(0, TSDB.metrics_width() * 2)
-        .toUpperCase();
-      if (!first_metric.equals(metric)) {
-        throw new IllegalArgumentException(
-          "One or more TSUIDs did not share the same metric");
-      }
-    }
-    
-    // the metric will be set with the scanner is configured 
-    this.tsuids = tsuids;
-    aggregator = function;
-    this.rate = rate;
-    this.rate_options = rate_options;
-  }
-  
-  @Override
   public Deferred<Object> configureFromQuery(final TSQuery query, 
       final int index) {
     if (query.getQueries() == null || query.getQueries().isEmpty()) {
@@ -577,12 +539,8 @@ final class TsdbQuery implements Query {
                
            for (final ArrayList<KeyValue> row : rows) {
              final byte[] key = row.get(0).key();
-             final String keyString = new String(row.get(0).key(), CHARSET);
-             final String[] keyComponents = keyString.split("\0");
-             // No salting here so this is a safe assumption.
-             final String keyMetric = keyComponents[0];
-             // final String keyTimestamp = keyComponents[1];
-             final String keyTags = keyComponents[2];
+             final String keyMetric = RowKey.metricName(key);
+             final String keyTags = RowKey.getTagString(key);
 
              if (keyMetric != metric) {
                scanner.close();
@@ -625,9 +583,7 @@ final class TsdbQuery implements Query {
              if (scanner_filters != null && !scanner_filters.isEmpty()) {
                lookups.clear();
                // tsuid is metric + tagk/tagvs. Excludes timestamp. Used to prevent repeatedly 
-               final String tsuid = 
-                   UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
-                   metric_width, Const.TIMESTAMP_BYTES));
+               final String tsuid = keyMetric + keyTags;
                if (skips.contains(tsuid)) {
                  continue;
                }
@@ -652,7 +608,7 @@ final class TsdbQuery implements Query {
                    }
                  }
 
-                 final Map<String, String> tags = Tags.getTags(keyTags);
+                 final Map<String, String> tags = RowKey.getTags(key);
 
                  final List<Deferred<Boolean>> matches =
                      new ArrayList<Deferred<Boolean>>(scanner_filters.size());
@@ -728,15 +684,6 @@ final class TsdbQuery implements Query {
          if (datapoints == null) {
            datapoints = new Span();
            spans.put(key, datapoints);
-         }
-         final long compaction_start = DateTime.nanoTime();
-         final KeyValue compacted = 
-           tsdb.compact(row, datapoints.getAnnotations());
-         compaction_time += (DateTime.nanoTime() - compaction_start);
-         seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-         if (compacted != null) { // Can be null if we ignored all KVs.
-           datapoints.addRow(compacted);
-           ++nrows;
          }
        }
      

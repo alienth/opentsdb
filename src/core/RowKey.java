@@ -196,8 +196,13 @@ final public class RowKey {
     return tags;
   }
 
+  // TODO - Move this tags stuff to Tags.java.
   static Map<String, String> getTags(byte[] key) {
     final String tagStr = getTagString(key);
+    return getTags(tagStr);
+  }
+
+  private static Map<String, String> getTags(String tagStr) {
     final Map<String, String> tagm = new HashMap<String, String>();
 
     for (String tag : tagStr.split(tag_delim_str)) {
