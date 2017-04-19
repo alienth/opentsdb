@@ -13,19 +13,11 @@
 package net.opentsdb.core;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.hbase.async.Bytes;
-import org.hbase.async.Bytes.ByteMap;
-
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
@@ -448,81 +440,4 @@ final class SpanGroup implements DataPoints {
   public int getQueryIndex() {
     return query_index;
   }
-
-  /**
-   * Resolves the set of tag keys to their string names.
-   * @param tagks The set of unique tag names
-   * @return a deferred to wait on for all of the tag keys to be resolved. The
-   * result should be null.
-   */
-  // private Deferred<List<String>> resolveAggTags(final Set<byte[]> tagks) {
-  //   if (aggregated_tags != null) {
-  //     return Deferred.fromResult(null);
-  //   }
-  //   aggregated_tags = new ArrayList<String>(tagks.size());
-    
-  //   final List<Deferred<String>> names = 
-  //       new ArrayList<Deferred<String>>(tagks.size());
-  //   for (final byte[] tagk : tagks) {
-  //     names.add(tsdb.tag_names.getNameAsync(tagk));
-  //   }
-    
-  //   /** Adds the names to the aggregated_tags list */
-  //   final class ResolveCB implements Callback<List<String>, ArrayList<String>> {
-  //     @Override
-  //     public List<String> call(final ArrayList<String> names) throws Exception {
-  //       for (final String name : names) {
-  //         aggregated_tags.add(name);
-  //       }
-  //       return aggregated_tags;
-  //     }
-  //   }
-    
-  //   return Deferred.group(names).addCallback(new ResolveCB());
-  // }
-  
-  /**
-   * Resolves the tags to their names, loading them into {@link tags} after
-   * initializing that map.
-   * @param tag_uids The tag UIDs
-   * @return A defeferred to wait on for resolution to complete, the result
-   * should be null.
-   */
-  // private Deferred<Map<String, String>> resolveTags(final ByteMap<byte[]> tag_uids) {
-  //   if (tags != null) {
-  //     return Deferred.fromResult(null);
-  //   }
-  //   tags = new HashMap<String, String>(tag_uids.size());
-    
-  //   final List<Deferred<Object>> deferreds = 
-  //       new ArrayList<Deferred<Object>>(tag_uids.size());
-    
-  //   /** Dumps the pairs into the map in the correct order */
-  //   final class PairCB implements Callback<Object, ArrayList<String>> {
-  //     @Override
-  //     public Object call(final ArrayList<String> pair) throws Exception {
-  //       tags.put(pair.get(0), pair.get(1));
-  //       return null;
-  //     }
-  //   }
-    
-  //   /** Callback executed once all of the pairs are resolved and stored in the map */
-  //   final class GroupCB implements Callback<Map<String, String>, ArrayList<Object>> {
-  //     @Override
-  //     public Map<String, String> call(final ArrayList<Object> group) 
-  //         throws Exception {
-  //       return tags;
-  //     }
-  //   }
-    
-  //   for (Map.Entry<byte[], byte[]> tag_pair : tag_uids.entrySet()) {
-  //     final List<Deferred<String>> resolve_pair = 
-  //         new ArrayList<Deferred<String>>(2);
-  //     resolve_pair.add(tsdb.tag_names.getNameAsync(tag_pair.getKey()));
-  //     resolve_pair.add(tsdb.tag_values.getNameAsync(tag_pair.getValue()));
-  //     deferreds.add(Deferred.groupInOrder(resolve_pair).addCallback(new PairCB()));
-  //   }
-    
-  //   return Deferred.group(deferreds).addCallback(new GroupCB());
-  // }
 }
