@@ -45,14 +45,10 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.graph.Plot;
-import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
-
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -228,29 +224,7 @@ final class GraphHandler implements HttpRpc {
     final RunGnuplot rungnuplot = new RunGnuplot(query, max_age, plot, basepath,
             aggregated_tags, npoints);
 
-    class ErrorCB implements Callback<Object, Exception> {
-      public Object call(final Exception e) throws Exception {
-        LOG.warn("Failed to retrieve global annotations: ", e);
-        throw e;
-      }
-    }
-
-    class GlobalCB implements Callback<Object, List<Annotation>> {
-      public Object call(final List<Annotation> global_annotations) throws Exception {
-        rungnuplot.plot.setGlobals(global_annotations);
-        execGnuplot(rungnuplot, query);
-
-        return null;
-      }
-    }
-
-    // Fetch global annotations, if needed
-    if (!tsquery.getNoAnnotations() && tsquery.getGlobalAnnotations()) {
-      Annotation.getGlobalAnnotations(tsdb, start_time, end_time)
-              .addCallback(new GlobalCB()).addErrback(new ErrorCB());
-    } else {
-      execGnuplot(rungnuplot, query);
-    }
+    execGnuplot(rungnuplot, query);
   }
 
   private void execGnuplot(RunGnuplot rungnuplot, HttpQuery query) {

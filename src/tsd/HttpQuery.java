@@ -27,7 +27,6 @@ import java.util.List;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.PluginLoader;

@@ -43,7 +43,6 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.JSON;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a

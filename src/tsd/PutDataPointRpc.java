@@ -36,7 +36,6 @@ import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.uid.NoSuchUniqueName;
 
 /** Implements the "put" telnet-style command. */
 final class PutDataPointRpc implements TelnetRpc, HttpRpc {
@@ -83,9 +82,6 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     } catch (IllegalArgumentException x) {
       errmsg = "put: illegal argument: " + x.getMessage() + '\n';
       illegal_arguments.incrementAndGet();
-    } catch (NoSuchUniqueName x) {
-      errmsg = "put: unknown metric: " + x.getMessage() + '\n';
-      unknown_metrics.incrementAndGet();
     }
     if (errmsg != null) {
       LOG.debug(errmsg);
@@ -230,12 +226,6 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
         }
         LOG.warn(iae.getMessage() + ": " + dp);
         illegal_arguments.incrementAndGet();
-      } catch (NoSuchUniqueName nsu) {
-        if (show_details) {
-          details.add(this.getHttpDetails("Unknown metric", dp));
-        }
-        LOG.warn("Unknown metric: " + dp);
-        unknown_metrics.incrementAndGet();
       }
     }
     

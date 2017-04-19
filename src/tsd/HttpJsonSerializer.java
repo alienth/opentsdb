@@ -378,8 +378,8 @@ class HttpJsonSerializer extends HttpSerializer {
       }
       
       /** Resolves aggregated tags */
-      class AggTagResolver implements Callback<Object, List<String>> {
-        public Object call(final List<String> tags) throws Exception {
+      class AggTagResolver implements Callback<Object, Set<String>> {
+        public Object call(final Set<String> tags) throws Exception {
           DPsResolver.this.agg_tags.addAll(tags);
           return null;
         }
@@ -543,7 +543,7 @@ class HttpJsonSerializer extends HttpSerializer {
             .addCallback(new MetricResolver()));
         resolve_deferreds.add(Deferred.fromResult(dps.getTags())
             .addCallback(new TagResolver()));
-        resolve_deferreds.add(dps.getAggregatedTagsAsync()
+        resolve_deferreds.add(Deferred.fromResult(dps.getAggregatedTags())
             .addCallback(new AggTagResolver()));
         return Deferred.group(resolve_deferreds)
             .addCallback(new WriteToBuffer(dps));

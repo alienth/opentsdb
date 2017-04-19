@@ -270,14 +270,10 @@ public final class RpcManager {
     if (mode.equals("rw") || mode.equals("ro")) {
       final StaticFileRpc staticfile = new StaticFileRpc();
       final StatsRpc stats = new StatsRpc();
-      final DropCachesRpc dropcaches = new DropCachesRpc();
       final ListAggregators aggregators = new ListAggregators();
-      final SuggestRpc suggest_rpc = new SuggestRpc();
-      final AnnotationRpc annotation_rpc = new AnnotationRpc();
       final Version version = new Version();
 
       telnet.put("stats", stats);
-      telnet.put("dropcaches", dropcaches);
       telnet.put("version", version);
       telnet.put("exit", new Exit());
       telnet.put("help", new Help());
@@ -285,29 +281,20 @@ public final class RpcManager {
       if (enableUi) {
         http.put("", new HomePage());
         http.put("aggregators", aggregators);
-        http.put("dropcaches", dropcaches);
         http.put("favicon.ico", staticfile);
         http.put("logs", new LogsRpc());
         http.put("q", new GraphHandler());
         http.put("s", staticfile);
         http.put("stats", stats);
-        http.put("suggest", suggest_rpc);
         http.put("version", version);
       }
 
       if (enableApi) {
         http.put("api/aggregators", aggregators);
-        http.put("api/annotation", annotation_rpc);
-        http.put("api/annotations", annotation_rpc);
         http.put("api/config", new ShowConfig());
-        http.put("api/dropcaches", dropcaches);
         http.put("api/query", new QueryRpc());
-        http.put("api/search", new SearchRpc());
         http.put("api/serializers", new Serializers());
         http.put("api/stats", stats);
-        http.put("api/suggest", suggest_rpc);
-        http.put("api/tree", new TreeRpc());
-        http.put("api/uid", new UniqueIdRpc());
         http.put("api/version", version);
       }
     }
