@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import net.opentsdb.core.Const;
@@ -47,27 +48,28 @@ public class QueryUtil {
   
   /**
    * Crafts a regular expression for scanning over data table rows and filtering
-   * time series that the user doesn't want. At least one of the parameters 
-   * must be set and have values.
-   * NOTE: This method will sort the group bys.
+   * time series that the user doesn't want.
    * @param group_bys An optional list of tag keys that we want to group on. May
    * be null.
    * @param row_key_literals An optional list of key value pairs to filter on.
    * May be null.
    * @return A regular expression string to pass to the storage layer.
    */
-  public static String getRowKeyUIDRegex(final List<byte[]> group_bys, 
-      final ByteMap<byte[][]> row_key_literals) {
-    return getRowKeyUIDRegex(group_bys, row_key_literals, false, null, null, null);
-  }
+  public static String getRowKeyRegex(
+      final List<String> group_bys,
+      final Map<String, String[]> row_key_literals, 
+      final List<TagVFilter> filters) {
+    if (group_bys != null) {
+      Collections.sort(group_bys);
+    }
+    for (final TagVFilter filter : filters) {
+      if (filter instanceof TagVWildcardFilter) {
+        TagVWildcardFilter wildcard = (TagVWildcardFilter) filter;
+      }
+    }
 
-  public static String getRowKeyUIDRegex(final List<byte[]> group_bys, 
-      final ByteMap<byte[][]> row_key_literals,
-      List<TagVFilter> filters) {
-    return getRowKeyUIDRegex(group_bys, row_key_literals, false, null, null, filters);
+    return "";
   }
- 
-  
   /**
    * Crafts a regular expression for scanning over data table rows and filtering
    * time series that the user doesn't want. Also fills in an optional fuzzy
@@ -203,8 +205,8 @@ public class QueryUtil {
    */
   public static void setDataTableScanFilter(
       final Scanner scanner, 
-      final List<byte[]> group_bys, 
-      final ByteMap<byte[][]> row_key_literals,
+      final List<String> group_bys, 
+      final Map<String, String[]> row_key_literals,
       final List<TagVFilter> filters,
       final int end_time) {
 
@@ -214,7 +216,7 @@ public class QueryUtil {
       return;
     }
 
-    final String regex = getRowKeyUIDRegex(group_bys, row_key_literals, filters);
+    final String regex = getRowKeyRegex(group_bys, row_key_literals, filters);
     final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
         regex.toString(), Const.ASCII_CHARSET);
     if (LOG.isDebugEnabled()) {
@@ -225,56 +227,6 @@ public class QueryUtil {
     scanner.setFilter(regex_filter);
     return;
 
-  }
-  
-  /**
-   * Creates a regular expression with a list of or'd TUIDs to compare
-   * against the rows in storage.
-   * @param tsuids The list of TSUIDs to scan for
-   * @return A regular expression string to pass to the storage layer.
-   */
-  public static String getRowKeyTSUIDRegex(final List<String> tsuids) {
-    Collections.sort(tsuids);
-    
-    // first, convert the tags to byte arrays and count up the total length
-    // so we can allocate the string builder
-    final short metric_width = TSDB.metrics_width();
-    int tags_length = 0;
-    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
-    for (final String tsuid : tsuids) {
-      final String tags = tsuid.substring(metric_width * 2);
-      final byte[] tag_bytes = UniqueId.stringToUid(tags);
-      tags_length += tag_bytes.length;
-      uids.add(tag_bytes);
-    }
-    
-    // Generate a regexp for our tags based on any metric and timestamp (since
-    // those are handled by the row start/stop) and the list of TSUID tagk/v
-    // pairs. The generated regex will look like: ^.{7}(tags|tags|tags)$
-    // where each "tags" is similar to \\Q\000\000\001\000\000\002\\E
-    final StringBuilder buf = new StringBuilder(
-        13  // "(?s)^.{N}(" + ")$"
-        + (tsuids.size() * 11) // "\\Q" + "\\E|"
-        + tags_length); // total # of bytes in tsuids tagk/v pairs
-    
-    // Alright, let's build this regexp.  From the beginning...
-    buf.append("(?s)"  // Ensure we use the DOTALL flag.
-               + "^.{")
-       // ... start by skipping the metric ID and timestamp.
-       .append(Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES)
-       .append("}(");
-    
-    for (final byte[] tags : uids) {
-       // quote the bytes
-      buf.append("\\Q");
-      addId(buf, tags, true);
-      buf.append('|');
-    }
-    
-    // Replace the pipe of the last iteration, close and set
-    buf.setCharAt(buf.length() - 1, ')');
-    buf.append("$");
-    return buf.toString();
   }
   
   /**

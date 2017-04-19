@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,20 +88,16 @@ final class TsdbQuery implements Query {
   /** the name of the metric being looked up */
   private String metric;
   
-  /** Row key regex to pass to HBase if we have tags or TSUIDs */
-  private String regex;
-  
   /**
    * Tags by which we must group the results.
-   * Each element is a tag key ID.
    * Invariant: an element cannot be both in this array and in {@code tags}.
    */
-  private ArrayList<byte[]> group_bys;
+  private ArrayList<String> group_bys;
 
   /**
    * Tag key and values to use in the row key filter, all pre-sorted
    */
-  private ByteMap<byte[][]> row_key_literals;
+  private Map<String, String[]> row_key_literals;
 
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
@@ -218,27 +215,27 @@ final class TsdbQuery implements Query {
     }
     TagVFilter.tagsToFilters(tags, filters);
     
-    try {
-      for (final TagVFilter filter : this.filters) {
-        filter.resolveTagkName(tsdb).join();
-      }
-    } catch (final InterruptedException e) {
-      LOG.warn("Interrupted", e);
-      Thread.currentThread().interrupt();
-    } catch (final Exception e) {
-      if (e instanceof DeferredGroupException) {
-        // rollback to the actual case. The DGE missdirects
-        Throwable ex = e.getCause();
-        while(ex != null && ex instanceof DeferredGroupException) {
-          ex = ex.getCause();
-        }
-        if (ex != null) {
-          throw (RuntimeException)ex;
-        }
-      }
-      LOG.error("Unexpected exception processing group bys", e);
-      throw new RuntimeException(e);
-    }
+    // try {
+    //   for (final TagVFilter filter : this.filters) {
+    //     // filter.resolveTagkName(tsdb).join();
+    //   }
+    // } catch (final InterruptedException e) {
+    //   LOG.warn("Interrupted", e);
+    //   Thread.currentThread().interrupt();
+    // } catch (final Exception e) {
+    //   if (e instanceof DeferredGroupException) {
+    //     // rollback to the actual case. The DGE missdirects
+    //     Throwable ex = e.getCause();
+    //     while(ex != null && ex instanceof DeferredGroupException) {
+    //       ex = ex.getCause();
+    //     }
+    //     if (ex != null) {
+    //       throw (RuntimeException)ex;
+    //     }
+    //   }
+    //   LOG.error("Unexpected exception processing group bys", e);
+    //   throw new RuntimeException(e);
+    // }
     
     findGroupBys();
     this.metric = metric;
@@ -314,7 +311,10 @@ final class TsdbQuery implements Query {
       return;
     }
     
-    row_key_literals = new ByteMap<byte[][]>();
+    // Why was this a map of a byte[][] ?
+    // Because it is an array of tagvalues, which are byte[]
+    row_key_literals = new TreeMap<String, String[]>();
+
     
     Collections.sort(filters);
     final Iterator<TagVFilter> current_iterator = filters.iterator();
@@ -327,7 +327,7 @@ final class TsdbQuery implements Query {
       int gbs = 0;
       // sorted!
       // final ByteMap<Void> literals = new ByteMap<Void>();
-      final TreeMap<String, Void> literals = new TreeMap<String, Void>();
+      final Set<String> literals = new TreeSet<String>();
       final List<TagVFilter> literal_filters = new ArrayList<TagVFilter>();
       TagVFilter current = null;
       do { // yeah, I'm breakin out the do!!!
@@ -339,9 +339,9 @@ final class TsdbQuery implements Query {
         if (current.isGroupBy()) {
           gbs++;
         }
-        if (!current.getTagVUids().isEmpty()) {
+        if (!current.getTagVs().isEmpty()) {
           for (final String tagv : current.getTagVs()) {
-            literals.put(tagv, null);
+            literals.add(tagv);
           }
           literal_filters.add(current);
         }
@@ -355,9 +355,9 @@ final class TsdbQuery implements Query {
 
       if (gbs > 0) {
         if (group_bys == null) {
-          group_bys = new ArrayList<byte[]>();
+          group_bys = new ArrayList<String>();
         }
-        group_bys.add(current.getTagkBytes());
+        group_bys.add(current.getTagk());
       }
       
       if (literals.size() > 0) {
@@ -366,9 +366,9 @@ final class TsdbQuery implements Query {
           LOG.debug("Skipping literals for " + current.getTagk() + 
               " as it exceedes the limit");
         } else {
-          final byte[][] values = new byte[literals.size()][];
-          literals.keySet().toArray(values);
-          row_key_literals.put(current.getTagkBytes(), values);
+          String[] values = new String[literals.size()];
+          literals.toArray(values);
+          row_key_literals.put(current.getTagk(), values);
           row_key_literals_count += values.length;
           
           for (final TagVFilter filter : literal_filters) {
@@ -376,7 +376,7 @@ final class TsdbQuery implements Query {
           }
         }
       } else {
-        row_key_literals.put(current.getTagkBytes(), null);
+        row_key_literals.put(current.getTagk(), null);
       }
     }
   }
@@ -1013,11 +1013,11 @@ final class TsdbQuery implements Query {
       return query.filters;
     }
     
-    static ArrayList<byte[]> getGroupBys(final TsdbQuery query) {
+    static ArrayList<String> getGroupBys(final TsdbQuery query) {
       return query.group_bys;
     }
     
-    static ByteMap<byte[][]> getRowKeyLiterals(final TsdbQuery query) {
+    static Map<String, String[]> getRowKeyLiterals(final TsdbQuery query) {
       return query.row_key_literals;
     }
   

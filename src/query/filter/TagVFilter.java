@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.PluginLoader;
@@ -393,117 +392,10 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
     return filters;
   }
   
-  /**
-   * Asynchronously resolves the tagk name to it's UID. On a successful lookup
-   * the {@link tagk_bytes} will be set.
-   * @param tsdb The TSDB to use for the lookup
-   * @return A deferred to let the caller know that the lookup was completed.
-   * The value will be the tag UID (unless it's an exception of course)
-   */
-  public Deferred<byte[]> resolveTagkName(final TSDB tsdb) {
-    class ResolvedCB implements Callback<byte[], byte[]> {
-      @Override
-      public byte[] call(final byte[] uid) throws Exception {
-        tagk_bytes = uid;
-        return uid;
-      }
-    }
-    
-    return tsdb.getUIDAsync(UniqueIdType.TAGK, tagk)
-        .addCallback(new ResolvedCB());
-  }
-  
-  /**
-   * Resolves both the tagk to it's UID and a list of literal tag values to
-   * their UIDs. A filter may match a literal set (e.g. the pipe filter) in which
-   * case we can build the row key scanner with these values.
-   * Note that if "tsd.query.skip_unresolved_tagvs" is set in the config then
-   * any tag value UIDs that couldn't be found will be excluded.
-   * @param tsdb The TSDB to use for the lookup
-   * @param literals The list of unique strings to lookup
-   * @return A deferred to let the caller know that the lookup was completed.
-   * The value will be the tag UID (unless it's an exception of course)
-   */
-  public Deferred<byte[]> resolveTags(final TSDB tsdb, 
-      final Set<String> literals) {
-    final Config config = tsdb.getConfig();
-    
-    /**
-     * Allows the filter to avoid killing the entire query when we can't resolve
-     * a tag value to a UID.
-     */
-    class TagVErrback implements Callback<byte[], Exception> {
-      @Override
-      public byte[] call(final Exception e) throws Exception {
-        if (config.getBoolean("tsd.query.skip_unresolved_tagvs")) {
-          LOG.warn("Query tag value not found: " + e.getMessage());
-          return null;
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    /**
-     * Stores the non-null UIDs in the local list and then sorts them in
-     * prep for use in the regex filter
-     */
-    class ResolvedTagVCB implements Callback<byte[], ArrayList<byte[]>> {
-      @Override
-      public byte[] call(final ArrayList<byte[]> results) 
-          throws Exception {
-        tagv_uids = new ArrayList<byte[]>(results.size() - 1);
-        for (final byte[] tagv : results) {
-          if (tagv != null) {
-            tagv_uids.add(tagv);
-          }
-        }
-        Collections.sort(tagv_uids, Bytes.MEMCMP);
-        return tagk_bytes;
-      }
-    }
-    
-    /**
-     * Super simple callback to set the local tagk and returns null so it won't
-     * be included in the tag value UID lookups.
-     */
-    class ResolvedTagKCB implements Callback<byte[], byte[]> {
-      @Override
-      public byte[] call(final byte[] uid) throws Exception {
-        tagk_bytes = uid;
-        return null;
-      }
-    }
-
-    final List<Deferred<byte[]>> tagvs = 
-        new ArrayList<Deferred<byte[]>>(literals.size());
-    for (final String tagv : literals) {
-      tagvs.add(tsdb.getUIDAsync(UniqueIdType.TAGV, tagv)
-          .addErrback(new TagVErrback()));
-    }
-    // ugly hack to resolve the tagk UID. The callback will return null and we'll
-    // remove it from the UID list.
-    tagvs.add(tsdb.getUIDAsync(UniqueIdType.TAGK, tagk)
-      .addCallback(new ResolvedTagKCB()));
-    return Deferred.group(tagvs).addCallback(new ResolvedTagVCB());
-  }
   
   /** @return the tag key associated with this filter */
   public String getTagk() {
     return tagk;
-  }
-
-  /** @return the tag key UID associated with this filter. 
-   * Call {@link resolveName} first */
-  @JsonIgnore
-  public byte[] getTagkBytes() {
-    return tagk_bytes;
-  }
-  
-  /** @return a non-null list of tag value UIDs. May be empty. */
-  @JsonIgnore
-  public List<byte[]> getTagVUids() {
-    return tagv_uids == null ? Collections.<byte[]>emptyList() : tagv_uids;
   }
 
   @JsonIgnore

@@ -296,23 +296,6 @@ public final class TSSubQuery {
     return new ArrayList<TagVFilter>(filters);
   }
   
-  /** @return the unique set of tagks from the filters. May be null if no filters
-   * were set. Must make sure to resolve the string tag to UIDs in the filter first.
-   * @since 2.3
-   */
-  public ByteSet getFilterTagKs() {
-    if (filters == null || filters.isEmpty()) {
-      return null;
-    }
-    final ByteSet tagks = new ByteSet();
-    for (final TagVFilter filter : filters) {
-      if (filter != null && filter.getTagkBytes() != null) {
-        tagks.add(filter.getTagkBytes());
-      }
-    }
-    return tagks;
-  }
-  
   /** @return whether or not to match series with ONLY the given tags 
    * @since 2.3 */
   public boolean getExplicitTags() {
