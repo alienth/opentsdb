@@ -110,7 +110,6 @@ final class RowSeq implements DataPoints {
     int local_v_index = 0;
     int merged_v_index = 0;
     short v_length;
-    short q_length;
     while (remote_q_index < remote_qual.length || 
         local_q_index < qualifiers.length) {
       // if the remote q has finished, we just need to handle left over locals
@@ -122,12 +121,10 @@ final class RowSeq implements DataPoints {
         local_v_index += v_length;
         merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(qualifiers, 
-            local_q_index);
         System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
+            merged_q_index, Const.QUALIFIER_BYTES);
+        local_q_index += Const.QUALIFIER_BYTES;
+        merged_q_index += Const.QUALIFIER_BYTES;
         
         continue;
       }
@@ -141,12 +138,10 @@ final class RowSeq implements DataPoints {
         remote_v_index += v_length;
         merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
         System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
+            merged_q_index, Const.QUALIFIER_BYTES);
+        remote_q_index += Const.QUALIFIER_BYTES;
+        merged_q_index += Const.QUALIFIER_BYTES;
         
         continue;
       }
@@ -160,9 +155,7 @@ final class RowSeq implements DataPoints {
         v_length = Internal.getValueLengthFromQualifier(remote_qual, 
             remote_q_index);
         remote_v_index += v_length;
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
-        remote_q_index += q_length;
+        remote_q_index += Const.QUALIFIER_BYTES;
         continue;
       }
       
@@ -174,12 +167,10 @@ final class RowSeq implements DataPoints {
         remote_v_index += v_length;
         merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
         System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
+            merged_q_index, Const.QUALIFIER_BYTES);
+        remote_q_index += Const.QUALIFIER_BYTES;
+        merged_q_index += Const.QUALIFIER_BYTES;
       } else {
         v_length = Internal.getValueLengthFromQualifier(qualifiers, 
             local_q_index);
@@ -188,12 +179,10 @@ final class RowSeq implements DataPoints {
         local_v_index += v_length;
         merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(qualifiers, 
-            local_q_index);
         System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
+            merged_q_index, Const.QUALIFIER_BYTES);
+        local_q_index += Const.QUALIFIER_BYTES;
+        merged_q_index += Const.QUALIFIER_BYTES;
       }
     }
     
@@ -206,16 +195,7 @@ final class RowSeq implements DataPoints {
       qualifiers = Arrays.copyOfRange(merged_qualifiers, 0, merged_q_index);
     }
     
-    // set the meta bit based on the local and remote metas
-    byte meta = 0;
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
-                                     Const.MS_MIXED_COMPACT || 
-        (remote_val[remote_val.length - 1] & Const.MS_MIXED_COMPACT) == 
-                                             Const.MS_MIXED_COMPACT) {
-      meta = Const.MS_MIXED_COMPACT;
-    }
     values = Arrays.copyOfRange(merged_values, 0, merged_v_index + 1);
-    values[values.length - 1] = meta;
   }
 
   /**
@@ -288,23 +268,7 @@ final class RowSeq implements DataPoints {
    * Unfortunately we must walk the entire array as there may be a mix of
    * second and millisecond timestamps */
   public int size() {
-    // if we don't have a mix of second and millisecond qualifiers we can run
-    // this in O(1), otherwise we have to run O(n)
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
-      Const.MS_MIXED_COMPACT) {
-      int size = 0;
-      for (int i = 0; i < qualifiers.length; i += 2) {
-        if ((qualifiers[i] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-          i += 2;
-        }
-        size++;
-      }
-      return size;
-    } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return qualifiers.length / 4;
-    } else {
-      return qualifiers.length / 2;
-    }
+    return qualifiers.length / Const.QUALIFIER_BYTES;
   }
 
   /** @return 0 since aggregation cannot happen at the row level */
@@ -341,7 +305,7 @@ final class RowSeq implements DataPoints {
 
   public long timestamp(final int i) {
     checkIndex(i);
-    return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 4);
+    return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * Const.QUALIFIER_BYTES);
   }
 
   public boolean isInteger(final int i) {
@@ -496,9 +460,6 @@ final class RowSeq implements DataPoints {
     // ---------------------- //
 
     public void seek(final long timestamp) {
-      if ((timestamp & Const.MILLISECOND_MASK) != 0) {  // negative or not 48 bits
-        throw new IllegalArgumentException("invalid timestamp: " + timestamp);
-      }
       qual_index = 0;
       value_index = 0;
       final int len = qualifiers.length;
@@ -519,13 +480,8 @@ final class RowSeq implements DataPoints {
 
     public long timestamp() {
       assert qual_index > 0: "not initialized: " + this;
-      if ((qualifier & Const.MS_FLAG) == Const.MS_FLAG) {
-        final long ms = (qualifier & 0x0FFFFFC0) >>> (Const.MS_FLAG_BITS);
-        return (base_time * 1000) + ms;            
-      } else {
-        final long seconds = (qualifier & 0xFFFF) >>> Const.FLAG_BITS;
-        return (base_time + seconds) * 1000;
-      }
+      final long seconds = qualifier >>> Const.FLAG_BITS;
+      return (base_time + seconds) * 1000;
     }
 
     public boolean isInteger() {

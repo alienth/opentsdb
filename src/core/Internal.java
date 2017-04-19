@@ -441,64 +441,6 @@ public final class Internal {
   }
   
   /**
-   * Fix the flags inside the last byte of a qualifier.
-   * <p>
-   * OpenTSDB used to not rely on the size recorded in the flags being
-   * correct, and so for a long time it was setting the wrong size for
-   * floating point values (pretending they were encoded on 8 bytes when
-   * in fact they were on 4).  So overwrite these bits here to make sure
-   * they're correct now, because once they're compacted it's going to
-   * be quite hard to tell if the flags are right or wrong, and we need
-   * them to be correct to easily decode the values.
-   * @param flags The least significant byte of a qualifier.
-   * @param val_len The number of bytes in the value of this qualifier.
-   * @return The least significant byte of the qualifier with correct flags.
-   */
-  public static byte fixQualifierFlags(byte flags, final int val_len) {
-    // Explanation:
-    //   (1) Take the last byte of the qualifier.
-    //   (2) Zero out all the flag bits but one.
-    //       The one we keep is the type (floating point vs integer value).
-    //   (3) Set the length properly based on the value we have.
-    return (byte) ((flags & ~(Const.FLAGS_MASK >>> 1)) | (val_len - 1));
-    //              ^^^^^   ^^^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^
-    //               (1)               (2)                    (3)
-  }
-  
-
-   /**
-   * Determines if the qualifier is in milliseconds or not
-   * @param qualifier The qualifier to parse
-   * @param offset An offset from the start of the byte array
-   * @return True if the qualifier is in milliseconds, false if not
-   * @since 2.0
-   */
-  public static boolean inMilliseconds(final byte[] qualifier, 
-      final int offset) {
-    return inMilliseconds(qualifier[offset]);
-  }
-  
-  /**
-   * Determines if the qualifier is in milliseconds or not
-   * @param qualifier The qualifier to parse
-   * @return True if the qualifier is in milliseconds, false if not
-   * @since 2.0
-   */
-  public static boolean inMilliseconds(final byte[] qualifier) {
-    return inMilliseconds(qualifier[0]);
-  }
-  
-  /**
-   * Determines if the qualifier is in milliseconds or not
-   * @param qualifier The first byte of a qualifier
-   * @return True if the qualifier is in milliseconds, false if not
-   * @since 2.0
-   */
-  public static boolean inMilliseconds(final byte qualifier) {
-    return false;
-  }
-  
-  /**
    * Returns the offset in milliseconds from the row base timestamp from a data
    * point qualifier
    * @param qualifier The qualifier to parse
@@ -553,11 +495,7 @@ public final class Internal {
       final int offset) {
     validateQualifier(qualifier, offset);    
     short length;
-    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      length = (short) (qualifier[offset + 3] & Internal.LENGTH_MASK); 
-    } else {
-      length = (short) (qualifier[offset + 1] & Internal.LENGTH_MASK);
-    }
+    length = (short) (qualifier[offset + 3] & Internal.LENGTH_MASK); 
     return (byte) (length + 1);
   }
 
@@ -584,18 +522,7 @@ public final class Internal {
   public static short getQualifierLength(final byte[] qualifier, 
       final int offset) {
     validateQualifier(qualifier, offset);    
-    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      if ((offset + 4) > qualifier.length) {
-        throw new IllegalArgumentException(
-            "Detected a millisecond flag but qualifier length is too short");
-      }
-      return 4;
-    } else {
-      if ((offset + 2) > qualifier.length) {
-        throw new IllegalArgumentException("Qualifier length is too short");
-      }
-      return 2;
-    }
+    return Const.QUALIFIER_BYTES;
   }
   
   /**
@@ -649,11 +576,7 @@ public final class Internal {
   public static short getFlagsFromQualifier(final byte[] qualifier, 
       final int offset) {
     validateQualifier(qualifier, offset);
-    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return (short) (qualifier[offset + 3] & Internal.FLAGS_MASK); 
-    } else {
-      return (short) (qualifier[offset + 1] & Internal.FLAGS_MASK);
-    }
+    return (short) (qualifier[offset + 3] & Internal.FLAGS_MASK); 
   }
 
   /**
@@ -681,11 +604,7 @@ public final class Internal {
    */
   public static boolean isFloat(final byte[] qualifier, final int offset) {
     validateQualifier(qualifier, offset);
-    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return (qualifier[offset + 3] & Const.FLAG_FLOAT) == Const.FLAG_FLOAT; 
-    } else {
-      return (qualifier[offset + 1] & Const.FLAG_FLOAT) == Const.FLAG_FLOAT;
-    }
+    return (qualifier[offset + 3] & Const.FLAG_FLOAT) == Const.FLAG_FLOAT; 
   }
   
   /**
