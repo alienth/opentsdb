@@ -187,9 +187,6 @@ final class TSDMain {
         tsdb.setStartupPlugin(startup);
       }
       tsdb.initializePlugins(true);
-      if (config.getBoolean("tsd.storage.hbase.prefetch_meta")) {
-        tsdb.preFetchHBaseMeta();
-      }
       
       // Make sure we don't even start if we can't find our tables.
       tsdb.checkNecessaryTablesExist().joinUninterruptibly();
