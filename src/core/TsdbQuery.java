@@ -418,8 +418,7 @@ final class TsdbQuery implements Query {
   private Deferred<TreeMap<byte[], Span>> findSpans() throws HBaseException {
     final int metric_width = metric.getBytes(CHARSET).length;
     final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
-      new TreeMap<byte[], Span>(new SpanCmp(
-          (int)(Const.SALT_WIDTH() + metric_width)));
+      new TreeMap<byte[], Span>(new SpanCmp((int)(metric_width)));
     
     // Copy only the filters that should trigger a tag resolution. If this list
     // is empty due to literals or a wildcard star, then we'll save a TON of
@@ -434,16 +433,6 @@ final class TsdbQuery implements Query {
       }
     } else {
       scanner_filters = null;
-    }
-    
-    if (Const.SALT_WIDTH() > 0) {
-      final List<Scanner> scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
-      for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
-        scanners.add(getScanner(i));
-      }
-      scan_start_time = DateTime.nanoTime();
-      return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
-          delete, query_stats, query_index).scan();
     }
     
     scan_start_time = DateTime.nanoTime();

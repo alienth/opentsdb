@@ -91,8 +91,7 @@ final class RowSeq implements DataPoints {
     }
 
     final byte[] key = row.key();
-    if (Bytes.memcmp(this.key, key, Const.SALT_WIDTH(), 
-        key.length - Const.SALT_WIDTH()) != 0) {
+    if (Bytes.memcmp(this.key, key, 0, key.length) != 0) {
       throw new IllegalDataException("Attempt to add a different row="
           + row + ", this=" + this);
     }

@@ -14,7 +14,6 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -75,57 +74,6 @@ final public class RowKey {
 
 
   /**
-   * Returns the byte array for the given salt id
-   * WARNING: Don't use this one unless you know what you're doing. It's here
-   * for unit testing.
-   * @param bucket The ID of the bucket to get the salt for
-   * @return The salt as a byte array based on the width in bytes
-   * @since 2.2
-   */
-  public static byte[] getSaltBytes(final int bucket) {
-    final byte[] bytes = new byte[Const.SALT_WIDTH()];
-    int shift = 0;
-    for (int i = 1;i <= Const.SALT_WIDTH(); i++) {
-      bytes[Const.SALT_WIDTH() - i] = (byte) (bucket >>> shift);
-      shift += 8;
-    }
-    return bytes;
-  }
-
-  /**
-   * Calculates and writes an array of one or more salt bytes at the front of
-   * the given row key. 
-   * 
-   * The salt is calculated by taking the Java hash code of the metric and 
-   * tag UIDs and returning a modulo based on the number of salt buckets.
-   * The result will always be a positive integer from 0 to salt buckets.
-   * 
-   * NOTE: The row key passed in MUST have allocated the {@link width} number of
-   * bytes at the front of the row key or this call will overwrite data.
-   * 
-   * WARNING: If the width is set to a positive value, then the bucket must be
-   * at least 1 or greater.
-   * @param row_key The pre-allocated row key to write the salt to
-   * @since 2.2
-   */
-  public static void prefixKeyWithSalt(final byte[] row_key, final byte[] metric, final byte[] tags) {
-    if (Const.SALT_WIDTH() > 0) {
-      final byte[] salt_base = 
-          new byte[metric.length + tags.length];
-      System.arraycopy(metric, 0, salt_base, 0, metric.length);
-      System.arraycopy(tags,   0, salt_base, metric.length, tags.length);
-      int modulo = Arrays.hashCode(salt_base) % Const.SALT_BUCKETS();
-      if (modulo < 0) {
-        // make sure we return a positive salt.
-        modulo = modulo * -1;
-      }
-    
-      final byte[] salt = getSaltBytes(modulo);
-      System.arraycopy(salt, 0, row_key, 0, Const.SALT_WIDTH());
-    } // else salting is disabled so it's a no-op
-  }
-
-  /**
    * Checks a row key to determine if it contains the metric UID. If salting is
    * enabled, we skip the salt bytes.
    * @param metric The metric UID to match
@@ -137,34 +85,14 @@ final public class RowKey {
    */
   public static int rowKeyContainsMetric(final byte[] metric, 
       final byte[] row_key) {
-    int idx = Const.SALT_WIDTH();
-    for (int i = 0; i < metric.length; i++, idx++) {
-      if (metric[i] != row_key[idx]) {
-        return (metric[i] & 0xFF) - (row_key[idx] & 0xFF);  // "promote" to unsigned.
+    for (int i = 0; i < metric.length; i++) {
+      if (metric[i] != row_key[i]) {
+        return (metric[i] & 0xFF) - (row_key[i] & 0xFF);  // "promote" to unsigned.
       }
     }
     return 0;
   }
   
-  /**
-   * A comparator that ignores the salt in row keys
-   */
-  public static class SaltCmp implements Comparator<byte[]> {
-    public int compare(final byte[] a, final byte[] b) {
-      final int length = Math.min(a.length, b.length);
-      if (a == b) {  // Do this after accessing a.length and b.length
-        return 0;    // in order to NPE if either a or b is null.
-      }
-      // Skip salt
-      for (int i = Const.SALT_WIDTH(); i < length; i++) {
-        if (a[i] != b[i]) {
-          return (a[i] & 0xFF) - (b[i] & 0xFF);  // "promote" to unsigned.
-        }
-      }
-      return a.length - b.length;
-    }
-  }
-
   final static Charset CHARSET = TSDB.CHARSET;
   final static String tag_delim_str = ":";
   final static byte[] tag_delim = tag_delim_str.getBytes(CHARSET);
@@ -235,15 +163,14 @@ final public class RowKey {
    */
   static byte[] rowKeyTemplate(final TSDB tsdb, final byte[] metric,
       final byte[] tags) {
-    int row_size = (Const.SALT_WIDTH() +
-                    metric.length +
+    int row_size = (metric.length +
                     1 +
                     Const.TIMESTAMP_BYTES +
                     1 +
                     tags.length);
     final byte[] row = new byte[row_size];
 
-    short pos = (short) Const.SALT_WIDTH();
+    short pos = (short) 0;
 
     // final byte[] delim = new byte[]{field_delim};
 

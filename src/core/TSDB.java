@@ -133,12 +133,6 @@ public final class TSDB {
    if (config.hasProperty("tsd.storage.max_tags")) {
       Const.setMaxNumTags(config.getShort("tsd.storage.max_tags"));
     }
-    if (config.hasProperty("tsd.storage.salt.buckets")) {
-      Const.setSaltBuckets(config.getInt("tsd.storage.salt.buckets"));
-    }
-    if (config.hasProperty("tsd.storage.salt.width")) {
-      Const.setSaltWidth(config.getInt("tsd.storage.salt.width"));
-    }
     
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
@@ -604,15 +598,14 @@ public final class TSDB {
           @Override
           public Deferred<Object> call(final Object write_result) throws Exception {
             Deferred<Object> indexResult = null;
-            final byte[] indexRowKey = Arrays.copyOfRange(row, 0, Const.SALT_WIDTH() + metric.length);
+            final byte[] indexRowKey = Arrays.copyOfRange(row, 0, metric.length);
             final PutRequest index = new PutRequest(table, indexRowKey, INDEX_FAMILY, tags, INDEX_VALUE);
             indexResult = client.put(index);
             return indexResult;
           }
         }
 
-        Bytes.setInt(row, (int) base_time, metric.length + Const.SALT_WIDTH() + 1);
-        RowKey.prefixKeyWithSalt(row, metric, tags);
+        Bytes.setInt(row, (int) base_time, metric.length + 1);
 
         Deferred<Object> result = null;
         final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);

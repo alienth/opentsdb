@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.utils.ByteSet;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.Objects;

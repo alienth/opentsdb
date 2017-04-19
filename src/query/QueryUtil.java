@@ -26,7 +26,6 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
-import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.FilterList;
@@ -118,8 +117,8 @@ public class QueryUtil {
     // Alright, let's build this regexp.  From the beginning...
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
-       // ... start by skipping the salt, metric ID and timestamp.
-       .append(Const.SALT_WIDTH() + TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
+       // ... start by skipping metric ID and timestamp.
+       .append(TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
        .append("}");
 
     final Iterator<Entry<byte[], byte[][]>> it = row_key_literals == null ? 
@@ -245,21 +244,14 @@ public class QueryUtil {
       final String metric, final int start, final int stop, 
       final byte[] table, final byte[] family) {
     final short metric_width = TSDB.metrics_width();
-    final int metric_salt_width = metric_width + Const.SALT_WIDTH();
-    final byte[] start_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
-    final byte[] end_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+    final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
+    final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
     
-    if (Const.SALT_WIDTH() > 0) {
-      final byte[] salt = RowKey.getSaltBytes(salt_bucket);
-      System.arraycopy(salt, 0, start_row, 0, Const.SALT_WIDTH());
-      System.arraycopy(salt, 0, end_row, 0, Const.SALT_WIDTH());
-    }
+    Bytes.setInt(start_row, start, metric_width);
+    Bytes.setInt(end_row, stop, metric_width);
     
-    Bytes.setInt(start_row, start, metric_salt_width);
-    Bytes.setInt(end_row, stop, metric_salt_width);
-    
-    System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
-    System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width);
+    System.arraycopy(metric, 0, start_row, 0, metric_width);
+    System.arraycopy(metric, 0, end_row, 0, metric_width);
     
     final Scanner scanner = tsdb.getClient().newScanner(table);
     scanner.setMaxNumRows(tsdb.getConfig().scanner_maxNumRows());

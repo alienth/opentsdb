@@ -126,8 +126,7 @@ final class Span implements DataPoints {
     if (last_ts >= rowseq.timestamp(0)) {
       // scan to see if we need to merge into an existing row
       for (final RowSeq rs : rows) {
-        if (Bytes.memcmp(rs.key, row.key(), Const.SALT_WIDTH(), 
-            (rs.key.length - Const.SALT_WIDTH())) == 0) {
+        if (Bytes.memcmp(rs.key, row.key(), 0, rs.key.length) == 0) {
           rs.addRow(row);
           return;
         }
