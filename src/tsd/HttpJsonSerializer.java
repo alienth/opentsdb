@@ -571,9 +571,9 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    */
   public ChannelBuffer formatQueryV1(final TSQuery data_query, 
-      final List<DataPoints[]> results, final List<Annotation> globals) {
+      final List<DataPoints[]> results) {
     try {
-      return formatQueryAsyncV1(data_query, results, globals)
+      return formatQueryAsyncV1(data_query, results)
           .joinUninterruptibly();
     } catch (QueryException e) {
       throw e;
@@ -586,13 +586,12 @@ class HttpJsonSerializer extends HttpSerializer {
    * Format the results from a timeseries data query
    * @param data_query The TSQuery object used to fetch the results
    * @param results The data fetched from storage
-   * @param globals An optional list of global annotation objects
    * @return A Deferred<ChannelBuffer> object to pass on to the caller
    * @throws IOException if serialization failed
    * @since 2.2
    */
   public Deferred<ChannelBuffer> formatQueryAsyncV1(final TSQuery data_query, 
-      final List<DataPoints[]> results, final List<Annotation> globals) 
+      final List<DataPoints[]> results) 
           throws IOException {
     
     final long start = DateTime.currentTimeMillis();

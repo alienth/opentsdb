@@ -494,7 +494,7 @@ public abstract class HttpSerializer {
    * @since 2.2
    */
   public Deferred<ChannelBuffer> formatQueryAsyncV1(final TSQuery query, 
-      final List<DataPoints[]> results, final List<Annotation> globals) 
+      final List<DataPoints[]> results) 
       throws IOException {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
