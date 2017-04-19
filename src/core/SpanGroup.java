@@ -96,9 +96,6 @@ final class SpanGroup implements DataPoints {
   /** Index of the query in the TSQuery class */
   private final int query_index;
   
-  /** The TSDB to which we belong, used for resolution */
-  private final TSDB tsdb;
-  
   /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
@@ -235,7 +232,6 @@ final class SpanGroup implements DataPoints {
      this.query_start = query_start;
      this.query_end = query_end;
      this.query_index = query_index;
-     this.tsdb = tsdb;
   }
   
   /**
@@ -346,50 +342,23 @@ final class SpanGroup implements DataPoints {
     return tags;
   }
   
-  public List<String> getAggregatedTags() {
-    try {
-      return getAggregatedTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
+  public Set<String> getAggregatedTags() {
     if (aggregated_tags != null) {
-      return Deferred.fromResult(aggregated_tags);
+      return aggregated_tags;
     }
-    
+
     if (spans.isEmpty()) {
-      aggregated_tags = new ArrayList<String>(0);
-      return Deferred.fromResult(aggregated_tags);
+      aggregated_tags = new HashSet<String>(0);
+      return aggregated_tags;
     }
-    
-    if (aggregated_tag_uids == null) {
+
+    if (aggregated_tags == null) {
       computeTags();
     }
-    
-    return resolveAggTags(aggregated_tag_uids);
+
+    return aggregated_tags;
   }
   
-  @Override
-  public List<byte[]> getAggregatedTagUids() {
-    if (aggregated_tag_uids != null) {
-      return new ArrayList<byte[]>(aggregated_tag_uids);
-    }
-    
-    if (spans.isEmpty()) {
-      return Collections.emptyList();
-    }
-    
-    if (aggregated_tag_uids == null) {
-      computeTags();
-    }
-    return new ArrayList<byte[]>(aggregated_tag_uids);
-  }
-
- 
   public int size() {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in

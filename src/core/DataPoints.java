@@ -14,6 +14,7 @@ package net.opentsdb.core;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.stumbleupon.async.Deferred;
 
@@ -48,30 +49,7 @@ public interface DataPoints extends Iterable<DataPoint> {
    * series, the list returned is empty.
    * @return A non-{@code null} list of tag names.
    */
-  List<String> getAggregatedTags();
-  
-  /**
-   * Returns the tags associated with some but not all of the data points.
-   * <p>
-   * When this instance represents the aggregation of multiple time series
-   * (same metric but different tags), {@link #getTags} returns the tags that
-   * are common to all data points (intersection set) whereas this method
-   * returns all the tags names that are not common to all data points (union
-   * set minus the intersection set, also called the symmetric difference).
-   * <p>
-   * If this instance does not represent an aggregation of multiple time
-   * series, the list returned is empty.
-   * @return A non-{@code null} list of tag names.
-   * @since 1.2
-   */
-  Deferred<List<String>> getAggregatedTagsAsync();
-
-  /**
-   * Returns the tagk UIDs associated with some but not all of the data points. 
-   * @return a non-{@code null} list of tagk UIDs.
-   * @since 2.3
-   */
-  List<byte[]> getAggregatedTagUids();
+  Set<String> getAggregatedTags();
   
   /**
    * Returns the number of data points.
