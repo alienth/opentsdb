@@ -30,12 +30,10 @@ import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
-import org.hbase.async.Bytes.ByteMap;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;

@@ -13,7 +13,6 @@
 package net.opentsdb.core;
 
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,7 +33,8 @@ final public class RowKey {
    * @throws NoSuchUniqueId if the UID could not resolve to a string
    */
   static String metricName(final byte[] key) {
-    return getKeyField(key, metric_field);
+    String keyStr = new String(key, CHARSET);
+    return keyStr.substring(0, keyStr.indexOf(field_delim));
   }
 
   // TODO Const this
@@ -44,34 +44,8 @@ final public class RowKey {
 
   /** Extracts the timestamp from a row key.  */
   static long baseTime(final byte[] row) {
-    return Bytes.getUnsignedInt(getKeyFieldBytes(row, ts_field));
+    return Bytes.getUnsignedInt(row, Bytes.indexOf(row, field_delim));
   }
- 
-  private static String getKeyField(final byte[] key, int field) {
-    String keyStr = new String(key, CHARSET);
-    return keyStr.split(field_delim_str)[field];
-  }
-
-  private static byte[] getKeyFieldBytes(final byte[] key, int field) {
-    short delimCount = 0;
-    int fieldStart = 0;              // inclusive start index of the field
-    int fieldStop = key.length - 1;  // exclusive end index of the field
-
-    for (short i = 0; i < key.length; i++) {
-      if (key[i] == field_delim) {
-        delimCount++;
-        if (delimCount == field) {
-          fieldStop = i;
-          break;
-        } else {
-          fieldStart = i;
-        }
-      }
-    }
-
-    return Arrays.copyOfRange(key, fieldStart, fieldStop);
-  }
-
 
   /**
    * Checks a row key to determine if it contains the metric UID. If salting is
@@ -147,7 +121,9 @@ final public class RowKey {
   }
 
   static String getTagString(byte[] key) {
-    return getKeyField(key, tags_field);
+    String keyStr = new String(key, CHARSET);
+    final int tagStart = keyStr.indexOf(field_delim) + Const.TIMESTAMP_BYTES;
+    return keyStr.substring(tagStart);
   }
 
   static byte[] rowKeyTemplate(final TSDB tsdb, final String metricStr,
@@ -180,9 +156,6 @@ final public class RowKey {
     pos += 1;
 
     pos += Const.TIMESTAMP_BYTES;
-    // copyInRowKey(row, pos, delim); // delim is 00, which is what is initialized by default.
-    pos += 1;
-
     copyInRowKey(row, pos, tags);
 
     return row;
