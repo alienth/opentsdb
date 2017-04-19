@@ -14,26 +14,17 @@ package net.opentsdb.core;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.hbase.async.Bytes;
-import org.hbase.async.HBaseRpc;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PleaseThrottleException;
 
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.utils.JSON;
 
 /**
  * "Queue" of rows to compact.
@@ -52,15 +43,9 @@ import net.opentsdb.utils.JSON;
  * every single cell.  And because there is no way to efficiently append bytes
  * at the end of a cell, we have to do this instead.
  */
-final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
+final class CompactionQueue  {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionQueue.class);
-
-  /**
-   * How many items are currently in the queue.
-   * Because {@link ConcurrentSkipListMap#size} has O(N) complexity.
-   */
-  private final AtomicInteger size = new AtomicInteger();
 
   private final AtomicLong duplicates_different = new AtomicLong();
   private final AtomicLong duplicates_same = new AtomicLong();
@@ -75,19 +60,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * @param tsdb The TSDB we belong to.
    */
   public CompactionQueue(final TSDB tsdb) {
-    super(new Cmp(tsdb));
+    // super(new Cmp(tsdb));
     this.tsdb = tsdb;
-  }
-
-  @Override
-  public int size() {
-    return size.get();
-  }
-
-  public void add(final byte[] row) {
-    if (super.put(row, Boolean.TRUE) == null) {
-      size.incrementAndGet();  // We added a new entry, count it.
-    }
   }
 
   /**
@@ -385,26 +359,26 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   static final long serialVersionUID = 1307386642;
 
-  /**
-   * Helper to sort the byte arrays in the compaction queue.
-   * <p>
-   * This comparator sorts things by timestamp first, this way we can find
-   * all rows of the same age at once.
-   */
-  private static final class Cmp implements Comparator<byte[]> {
+  // /**
+  //  * Helper to sort the byte arrays in the compaction queue.
+  //  * <p>
+  //  * This comparator sorts things by timestamp first, this way we can find
+  //  * all rows of the same age at once.
+  //  */
+  // private static final class Cmp implements Comparator<byte[]> {
 
-    /** The position with which the timestamp of metric starts.  */
-    private final short timestamp_pos;
+  //   /** The position with which the timestamp of metric starts.  */
+  //   private final short timestamp_pos;
 
-    public Cmp(final TSDB tsdb) {
-      timestamp_pos = (short) (Const.SALT_WIDTH() + tsdb.metrics.width());
-    }
+  //   public Cmp(final TSDB tsdb) {
+  //     timestamp_pos = (short) (Const.SALT_WIDTH() + tsdb.metrics.width());
+  //   }
 
-    @Override
-    public int compare(final byte[] a, final byte[] b) {
-      final int c = Bytes.memcmp(a, b, timestamp_pos, Const.TIMESTAMP_BYTES);
-      // If the timestamps are equal, sort according to the entire row key.
-      return c != 0 ? c : Bytes.memcmp(a, b);
-    }
-  }
+  //   @Override
+  //   public int compare(final byte[] a, final byte[] b) {
+  //     final int c = Bytes.memcmp(a, b, timestamp_pos, Const.TIMESTAMP_BYTES);
+  //     // If the timestamps are equal, sort according to the entire row key.
+  //     return c != 0 ? c : Bytes.memcmp(a, b);
+  //   }
+  // }
 }
