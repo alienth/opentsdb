@@ -63,7 +63,6 @@ final class SpanGroup implements DataPoints {
    * @see #computeTags
    */
   private Map<String, String> tags;
-  private ByteMap<byte[]> tag_uids;
 
   /**
    * The names of the tags that aren't shared by every single data point.
@@ -71,8 +70,7 @@ final class SpanGroup implements DataPoints {
    * in this group.
    * @see #computeTags
    */
-  private List<String> aggregated_tags;
-  private Set<byte[]> aggregated_tag_uids;
+  private Set<String> aggregated_tags;
 
   /** Spans in this group.  They must all be for the same metric. */
   private final ArrayList<Span> spans = new ArrayList<Span>();
@@ -281,83 +279,73 @@ final class SpanGroup implements DataPoints {
 
   /**
    * Computes the intersection set + symmetric difference of tags in all spans.
-   * This method loads the UID aggregated list and tag pair maps with byte arrays
-   * but does not actually resolve the UIDs to strings. 
-   * On the first run, it will initialize the UID collections (which may be empty)
+   * On the first run, it will initialize the tag collections (which may be empty)
    * and subsequent calls will skip processing.
    */
   private void computeTags() {
-    if (tag_uids != null && aggregated_tag_uids != null) {
+    if (tags != null && aggregated_tags != null) {
       return;
     }
     if (spans.isEmpty()) {
-      tag_uids = new ByteMap<byte[]>();
-      aggregated_tag_uids = new HashSet<byte[]>();
       return;
     }
     
-    // local tag uids
-    final ByteMap<byte[]> tag_set = new ByteMap<byte[]>();
+    // local intersection of tags
+    final Map<String, String> tag_set = new HashMap<String, String>(0);
     
-    // value is always null, we just want the set of unique keys
-    final ByteMap<byte[]> discards = new ByteMap<byte[]>();
+
+    // tags = intersection of tags
+    // aggregate_tags = symmetric difference of tags
+
+    // set of unique keys
+    final Set<String> discards = new HashSet<String>();
     final Iterator<Span> it = spans.iterator();
     while (it.hasNext()) {
       final Span span = it.next();
-      final ByteMap<byte[]> uids = span.getTagUids();
+      final Map<String, String> span_tags = span.getTags();
+      // final ByteMap<byte[]> uids = span.getTagUids();
       
-      for (final Map.Entry<byte[], byte[]> tag_pair : uids.entrySet()) {
+      for (final Map.Entry<String, String> tag_pair : span_tags.entrySet()) {
         // we already know it's an aggregated tag
-        if (discards.containsKey(tag_pair.getKey())) {
+        if (discards.contains(tag_pair.getKey())) {
           continue;
         }
         
-        final byte[] tag_value = tag_set.get(tag_pair.getKey());
+        final String tag_value = tag_set.get(tag_pair.getKey());
         if (tag_value == null) {
           tag_set.put(tag_pair.getKey(), tag_pair.getValue());
-        } else if (Bytes.memcmp(tag_value, tag_pair.getValue()) != 0) {
+        } else if (tag_value != tag_pair.getValue()) {
           // bump to aggregated tags
-          discards.put(tag_pair.getKey(), null);
+          discards.add(tag_pair.getKey());
           tag_set.remove(tag_pair.getKey());
         }
       }
     }
     
-    aggregated_tag_uids = discards.keySet();
-    tag_uids = tag_set;
+    aggregated_tags = discards;
+    tags = tag_set;
   }
 
   public String metricName() {
     return spans.get(0).metricName();
   }
   
+  // Returns the intersection of all tags associated with this group.
   public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<Map<String, String>> getTagsAsync() {
     if (tags != null) {
-      return Deferred.fromResult(tags);
+      return tags;
     }
-    
+
     if (spans.isEmpty()) {
-      tags = new HashMap<String, String>(0);
-      return Deferred.fromResult(tags);
+      return new HashMap<String, String>(0);
     }
-    
-    if (tag_uids == null) {
+
+    if (tags == null) {
       computeTags();
     }
-    
-    return resolveTags(tag_uids);
+    return tags;
   }
-
+  
   public List<String> getAggregatedTags() {
     try {
       return getAggregatedTagsAsync().joinUninterruptibly();
@@ -498,31 +486,31 @@ final class SpanGroup implements DataPoints {
    * @return a deferred to wait on for all of the tag keys to be resolved. The
    * result should be null.
    */
-  private Deferred<List<String>> resolveAggTags(final Set<byte[]> tagks) {
-    if (aggregated_tags != null) {
-      return Deferred.fromResult(null);
-    }
-    aggregated_tags = new ArrayList<String>(tagks.size());
+  // private Deferred<List<String>> resolveAggTags(final Set<byte[]> tagks) {
+  //   if (aggregated_tags != null) {
+  //     return Deferred.fromResult(null);
+  //   }
+  //   aggregated_tags = new ArrayList<String>(tagks.size());
     
-    final List<Deferred<String>> names = 
-        new ArrayList<Deferred<String>>(tagks.size());
-    for (final byte[] tagk : tagks) {
-      names.add(tsdb.tag_names.getNameAsync(tagk));
-    }
+  //   final List<Deferred<String>> names = 
+  //       new ArrayList<Deferred<String>>(tagks.size());
+  //   for (final byte[] tagk : tagks) {
+  //     names.add(tsdb.tag_names.getNameAsync(tagk));
+  //   }
     
-    /** Adds the names to the aggregated_tags list */
-    final class ResolveCB implements Callback<List<String>, ArrayList<String>> {
-      @Override
-      public List<String> call(final ArrayList<String> names) throws Exception {
-        for (final String name : names) {
-          aggregated_tags.add(name);
-        }
-        return aggregated_tags;
-      }
-    }
+  //   /** Adds the names to the aggregated_tags list */
+  //   final class ResolveCB implements Callback<List<String>, ArrayList<String>> {
+  //     @Override
+  //     public List<String> call(final ArrayList<String> names) throws Exception {
+  //       for (final String name : names) {
+  //         aggregated_tags.add(name);
+  //       }
+  //       return aggregated_tags;
+  //     }
+  //   }
     
-    return Deferred.group(names).addCallback(new ResolveCB());
-  }
+  //   return Deferred.group(names).addCallback(new ResolveCB());
+  // }
   
   /**
    * Resolves the tags to their names, loading them into {@link tags} after
@@ -531,41 +519,41 @@ final class SpanGroup implements DataPoints {
    * @return A defeferred to wait on for resolution to complete, the result
    * should be null.
    */
-  private Deferred<Map<String, String>> resolveTags(final ByteMap<byte[]> tag_uids) {
-    if (tags != null) {
-      return Deferred.fromResult(null);
-    }
-    tags = new HashMap<String, String>(tag_uids.size());
+  // private Deferred<Map<String, String>> resolveTags(final ByteMap<byte[]> tag_uids) {
+  //   if (tags != null) {
+  //     return Deferred.fromResult(null);
+  //   }
+  //   tags = new HashMap<String, String>(tag_uids.size());
     
-    final List<Deferred<Object>> deferreds = 
-        new ArrayList<Deferred<Object>>(tag_uids.size());
+  //   final List<Deferred<Object>> deferreds = 
+  //       new ArrayList<Deferred<Object>>(tag_uids.size());
     
-    /** Dumps the pairs into the map in the correct order */
-    final class PairCB implements Callback<Object, ArrayList<String>> {
-      @Override
-      public Object call(final ArrayList<String> pair) throws Exception {
-        tags.put(pair.get(0), pair.get(1));
-        return null;
-      }
-    }
+  //   /** Dumps the pairs into the map in the correct order */
+  //   final class PairCB implements Callback<Object, ArrayList<String>> {
+  //     @Override
+  //     public Object call(final ArrayList<String> pair) throws Exception {
+  //       tags.put(pair.get(0), pair.get(1));
+  //       return null;
+  //     }
+  //   }
     
-    /** Callback executed once all of the pairs are resolved and stored in the map */
-    final class GroupCB implements Callback<Map<String, String>, ArrayList<Object>> {
-      @Override
-      public Map<String, String> call(final ArrayList<Object> group) 
-          throws Exception {
-        return tags;
-      }
-    }
+  //   /** Callback executed once all of the pairs are resolved and stored in the map */
+  //   final class GroupCB implements Callback<Map<String, String>, ArrayList<Object>> {
+  //     @Override
+  //     public Map<String, String> call(final ArrayList<Object> group) 
+  //         throws Exception {
+  //       return tags;
+  //     }
+  //   }
     
-    for (Map.Entry<byte[], byte[]> tag_pair : tag_uids.entrySet()) {
-      final List<Deferred<String>> resolve_pair = 
-          new ArrayList<Deferred<String>>(2);
-      resolve_pair.add(tsdb.tag_names.getNameAsync(tag_pair.getKey()));
-      resolve_pair.add(tsdb.tag_values.getNameAsync(tag_pair.getValue()));
-      deferreds.add(Deferred.groupInOrder(resolve_pair).addCallback(new PairCB()));
-    }
+  //   for (Map.Entry<byte[], byte[]> tag_pair : tag_uids.entrySet()) {
+  //     final List<Deferred<String>> resolve_pair = 
+  //         new ArrayList<Deferred<String>>(2);
+  //     resolve_pair.add(tsdb.tag_names.getNameAsync(tag_pair.getKey()));
+  //     resolve_pair.add(tsdb.tag_values.getNameAsync(tag_pair.getValue()));
+  //     deferreds.add(Deferred.groupInOrder(resolve_pair).addCallback(new PairCB()));
+  //   }
     
-    return Deferred.group(deferreds).addCallback(new GroupCB());
-  }
+  //   return Deferred.group(deferreds).addCallback(new GroupCB());
+  // }
 }
