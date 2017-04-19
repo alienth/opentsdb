@@ -22,7 +22,6 @@ import java.util.NoSuchElementException;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
-import org.hbase.async.Bytes.ByteMap;
 
 import com.stumbleupon.async.Deferred;
 
@@ -270,11 +269,6 @@ final class RowSeq implements DataPoints {
     return RowKey.getTags(key);
   }
 
-  @Override
-  public ByteMap<byte[]> getTagUids() {
-    return Tags.getTagUids(key);
-  }
-  
   /** @return an empty list since aggregated tags cannot exist on a single row */
   public List<String> getAggregatedTags() {
     return Collections.emptyList();

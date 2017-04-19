@@ -15,8 +15,6 @@ package net.opentsdb.core;
 import java.util.List;
 import java.util.Map;
 
-import org.hbase.async.Bytes.ByteMap;
-
 import com.stumbleupon.async.Deferred;
 
 /**
