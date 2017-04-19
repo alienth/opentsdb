@@ -13,7 +13,6 @@
 package net.opentsdb.core;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -22,20 +21,17 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.utils.DateTime;
 
-import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -502,12 +498,23 @@ public class SaltScanner {
         }
       }
 
-      Span datapoints = spans.get(key);
-      if (datapoints == null) {
-        datapoints = new Span();
-        spans.put(key, datapoints);
+      final KeyValue compacted;
+      // let IllegalDataExceptions bubble up so the handler above can close
+      // the scanner
+      final long compaction_start = DateTime.nanoTime();
+      try {
+        compacted = tsdb.compact(row);
+      } catch (IllegalDataException idex) {
+        compaction_time += (DateTime.nanoTime() - compaction_start);
+        close(false);
+        handleException(idex);
+        return;
       }
-     }
+      compaction_time += (DateTime.nanoTime() - compaction_start);
+      if (compacted != null) { // Can be null if we ignored all KVs.
+        kvs.add(compacted);
+      }
+    }
   
     /**
      * Closes the scanner and sets the various stats after filtering
@@ -553,7 +560,7 @@ public class SaltScanner {
       }
       
       if (ok && exception == null) {
-        validateAndTriggerCallback(kvs, annotations);
+        validateAndTriggerCallback(kvs);
       } else {
         completed_tasks.incrementAndGet();
       }
@@ -565,20 +572,11 @@ public class SaltScanner {
    * @param kvs The compacted columns fetched by the scanner
    * @param annotations The annotations fetched by the scanners
    */
-  private void validateAndTriggerCallback(final List<KeyValue> kvs, 
-          final Map<byte[], List<Annotation>> annotations) {
+  private void validateAndTriggerCallback(final List<KeyValue> kvs) {
 
     final int tasks = completed_tasks.incrementAndGet();
     if (kvs.size() > 0) {
       kv_map.put(tasks, kvs);
-    }
-    
-    for (final byte[] key : annotations.keySet()) {
-      final List<Annotation> notes = annotations.get(key);
-      if (notes.size() > 0) {
-        // Optimistic write, expecting unique row keys
-        annotation_map.put(key, notes);
-      }
     }
     
     if (tasks >= Const.SALT_BUCKETS()) {

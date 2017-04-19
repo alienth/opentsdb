@@ -681,6 +681,13 @@ final class TsdbQuery implements Query {
            datapoints = new Span();
            spans.put(key, datapoints);
          }
+         final long compaction_start = DateTime.nanoTime();
+         final KeyValue compacted = tsdb.compact(row);
+         compaction_time += (DateTime.nanoTime() - compaction_start);
+         if (compacted != null) { // Can be null if we ignored all KVs.
+           datapoints.addRow(compacted);
+           ++nrows;
+         }
        }
      
        void close(final Exception e) {
