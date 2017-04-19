@@ -595,7 +595,7 @@ public final class TSDB {
           return Deferred.fromResult(null);
         }
         
-        Bytes.setInt(row, (int) base_time, metric.length + Const.SALT_WIDTH());
+        Bytes.setInt(row, (int) base_time, metric.length + Const.SALT_WIDTH() + 1);
         RowKey.prefixKeyWithSalt(row, metric, tags);
 
         Deferred<Object> result = null;

@@ -177,8 +177,9 @@ final public class RowKey {
   static byte[] tagsToBytes(Map<String, String> tagm) {
     int tag_size = 0;
     for (final String key : tagm.keySet()) {
-      tag_size += key.getBytes(CHARSET).length + tagm.get(key).getBytes(CHARSET).length;
+      tag_size += key.getBytes(CHARSET).length + tagm.get(key).getBytes(CHARSET).length + tag_delim.length + tag_equals.length;
     }
+    tag_size--; // We remove the last delimiter.
 
     byte[] tags = new byte[tag_size];
     short pos = 0;
@@ -192,6 +193,11 @@ final public class RowKey {
       pos += tag_equals.length;
       copyInRowKey(tags, pos, tagVal);
       pos += tagVal.length;
+      if (pos < tag_size) {
+        // Only put the delim if this isn't the end.
+        copyInRowKey(tags, pos, tag_delim);
+        pos += tagVal.length;
+      }
     }
     return tags;
   }
@@ -239,13 +245,15 @@ final public class RowKey {
 
     short pos = (short) Const.SALT_WIDTH();
 
+    // final byte[] delim = new byte[]{field_delim};
+
     copyInRowKey(row, pos, metric);
     pos += metric.length;
-    copyInRowKey(row, pos, new byte[]{field_delim});
+    // copyInRowKey(row, pos, delim); // delim is 00, which is what is initialized by default.
     pos += 1;
 
     pos += Const.TIMESTAMP_BYTES;
-    copyInRowKey(row, pos, new byte[]{field_delim});
+    // copyInRowKey(row, pos, delim); // delim is 00, which is what is initialized by default.
     pos += 1;
 
     copyInRowKey(row, pos, tags);
