@@ -56,7 +56,7 @@ public final class Const {
   public static final TimeZone UTC_TZ = TimeZone.getTimeZone("UTC");
 
   /** Number of LSBs in time_deltas reserved for flags.  */
-  public static final short FLAG_BITS = 4;
+  public static final short FLAG_BITS = 10;
   
   /** Number of LSBs in time_deltas reserved for flags.  */
   public static final short MS_FLAG_BITS = 6;

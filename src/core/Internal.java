@@ -212,23 +212,7 @@ public final class Internal {
       if (len % 2 != 0) {
         // skip a non data point column
         continue;
-      } else if (len == 2) {  // Single-value cell.
-        // Maybe we need to fix the flags in the qualifier.
-        final byte[] actual_val = fixFloatingPointValue(qual[1], val);
-        final byte q = fixQualifierFlags(qual[1], actual_val.length);
-        final byte[] actual_qual;
-        
-        if (q != qual[1]) {  // We need to fix the qualifier.
-          actual_qual = new byte[] { qual[0], q };  // So make a copy.
-        } else {
-          actual_qual = qual;  // Otherwise use the one we already have.
-        }
-        
-        final Cell cell = new Cell(actual_qual, actual_val);
-        cells.add(cell);
-        continue;
-      } else if (len == 4 && inMilliseconds(qual[0])) {
-        // since ms support is new, there's nothing to fix
+      } else if (len == 4) {  // Single-value cell.
         final Cell cell = new Cell(qual, val);
         cells.add(cell);
         continue;
@@ -237,12 +221,9 @@ public final class Internal {
       // Now break it down into Cells.
       int val_idx = 0;
       try {
-        for (int i = 0; i < len; i += 2) {
+        for (int i = 0; i < len; i += 4) {
           final byte[] q = extractQualifier(qual, i);
           final int vlen = getValueLengthFromQualifier(qual, i);
-          if (inMilliseconds(qual[i])) {
-            i += 2;
-          }
           
           final byte[] v = new byte[vlen];
           System.arraycopy(val, val_idx, v, 0, vlen);
@@ -356,17 +337,11 @@ public final class Internal {
     
     /**
      * Returns the timestamp as stored in HBase for the cell, i.e. in seconds
-     * or milliseconds
      * @param base_time Row key base time to add the offset to
      * @return Unix epoch timestamp
      */
     public long absoluteTimestamp(final long base_time) {
-      final long timestamp = getTimestampFromQualifier(qualifier, base_time);
-      if (inMilliseconds(qualifier)) {
-        return timestamp;
-      } else {
-        return timestamp / 1000;
-      }
+      return getTimestampFromQualifier(qualifier, base_time);
     }
     
     /** @return Whether or not the value is an integer */
@@ -489,90 +464,13 @@ public final class Internal {
     //               (1)               (2)                    (3)
   }
   
-  /**
-   * Returns whether or not this is a floating value that needs to be fixed.
-   * <p>
-   * OpenTSDB used to encode all floating point values as `float' (4 bytes)
-   * but actually store them on 8 bytes, with 4 leading 0 bytes, and flags
-   * correctly stating the value was on 4 bytes.
-   * (from CompactionQueue)
-   * @param flags The least significant byte of a qualifier.
-   * @param value The value that may need to be corrected.
-   */
-  public static boolean floatingPointValueToFix(final byte flags,
-                                                 final byte[] value) {
-    return (flags & Const.FLAG_FLOAT) != 0   // We need a floating point value.
-      && (flags & Const.LENGTH_MASK) == 0x3  // That pretends to be on 4 bytes.
-      && value.length == 8;                  // But is actually using 8 bytes.
-  }
 
-  /**
-   * Returns a corrected value if this is a floating point value to fix.
-   * <p>
-   * OpenTSDB used to encode all floating point values as `float' (4 bytes)
-   * but actually store them on 8 bytes, with 4 leading 0 bytes, and flags
-   * correctly stating the value was on 4 bytes.
-   * <p>
-   * This function detects such values and returns a corrected value, without
-   * the 4 leading zeros.  Otherwise it returns the value unchanged.
-   * (from CompactionQueue)
-   * @param flags The least significant byte of a qualifier.
-   * @param value The value that may need to be corrected.
-   * @throws IllegalDataException if the value is malformed.
-   */
-  public static byte[] fixFloatingPointValue(final byte flags,
-                                              final byte[] value) {
-    if (floatingPointValueToFix(flags, value)) {
-      // The first 4 bytes should really be zeros.
-      if (value[0] == 0 && value[1] == 0 && value[2] == 0 && value[3] == 0) {
-        // Just keep the last 4 bytes.
-        return new byte[] { value[4], value[5], value[6], value[7] };
-      } else {  // Very unlikely.
-        throw new IllegalDataException("Corrupted floating point value: "
-          + Arrays.toString(value) + " flags=0x" + Integer.toHexString(flags)
-          + " -- first 4 bytes are expected to be zeros.");
-      }
-    }
-    return value;
-  }
   
   /**
-   * Determines if the qualifier is in milliseconds or not
-   * @param qualifier The qualifier to parse
-   * @param offset An offset from the start of the byte array
-   * @return True if the qualifier is in milliseconds, false if not
-   * @since 2.0
-   */
-  public static boolean inMilliseconds(final byte[] qualifier, 
-      final int offset) {
-    return inMilliseconds(qualifier[offset]);
-  }
-  
-  /**
-   * Determines if the qualifier is in milliseconds or not
-   * @param qualifier The qualifier to parse
-   * @return True if the qualifier is in milliseconds, false if not
-   * @since 2.0
-   */
-  public static boolean inMilliseconds(final byte[] qualifier) {
-    return inMilliseconds(qualifier[0]);
-  }
-  
-  /**
-   * Determines if the qualifier is in milliseconds or not
-   * @param qualifier The first byte of a qualifier
-   * @return True if the qualifier is in milliseconds, false if not
-   * @since 2.0
-   */
-  public static boolean inMilliseconds(final byte qualifier) {
-    return (qualifier & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG;
-  }
-  
-  /**
-   * Returns the offset in milliseconds from the row base timestamp from a data
+   * Returns the offset in seconds from the row base timestamp from a data
    * point qualifier
    * @param qualifier The qualifier to parse
-   * @return The offset in milliseconds from the base time
+   * @return The offset in seconds from the base time
    * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
@@ -581,11 +479,11 @@ public final class Internal {
   }
   
   /**
-   * Returns the offset in milliseconds from the row base timestamp from a data
+   * Returns the offset in seconds from the row base timestamp from a data
    * point qualifier at the given offset (for compacted columns)
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
-   * @return The offset in milliseconds from the base time
+   * @return The offset in seconds from the base time
    * @throws IllegalDataException if the qualifier is null or the offset falls 
    * outside of the qualifier array
    * @since 2.0
@@ -593,14 +491,9 @@ public final class Internal {
   public static int getOffsetFromQualifier(final byte[] qualifier, 
       final int offset) {
     validateQualifier(qualifier, offset);
-    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return (int)(Bytes.getUnsignedInt(qualifier, offset) & 0x0FFFFFC0) 
-        >>> Const.MS_FLAG_BITS;
-    } else {
-      final int seconds = (Bytes.getUnsignedShort(qualifier, offset) & 0xFFFF) 
-        >>> Const.FLAG_BITS;
-      return seconds * 1000;
-    }
+    final int seconds = (Bytes.getUnsignedShort(qualifier, offset) & 0xFFFF) 
+      >>> Const.FLAG_BITS;
+    return seconds;
   }
   
   /**
@@ -673,31 +566,31 @@ public final class Internal {
   }
   
   /**
-   * Returns the absolute timestamp of a data point qualifier in milliseconds
+   * Returns the absolute timestamp of a data point qualifier in seconds
    * @param qualifier The qualifier to parse
    * @param base_time The base time, in seconds, from the row key
-   * @return The absolute timestamp in milliseconds
+   * @return The absolute timestamp in seconds
    * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static long getTimestampFromQualifier(final byte[] qualifier, 
       final long base_time) {
-    return (base_time * 1000) + getOffsetFromQualifier(qualifier);
+    return base_time + getOffsetFromQualifier(qualifier);
   }
   
   /**
-   * Returns the absolute timestamp of a data point qualifier in milliseconds
+   * Returns the absolute timestamp of a data point qualifier in seconds
    * @param qualifier The qualifier to parse
    * @param base_time The base time, in seconds, from the row key
    * @param offset An offset within the byte array
-   * @return The absolute timestamp in milliseconds
+   * @return The absolute timestamp in seconds
    * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
   public static long getTimestampFromQualifier(final byte[] qualifier, 
       final long base_time, final int offset) {
-    return (base_time * 1000) + getOffsetFromQualifier(qualifier, offset);
+    return base_time + getOffsetFromQualifier(qualifier, offset);
   }
 
   /**
@@ -774,6 +667,7 @@ public final class Internal {
   public static byte[] extractQualifier(final byte[] qualifier, 
       final int offset) {
     validateQualifier(qualifier, offset);
+    return new byte[] { qualifier[offset], qualifier[offset + 1] };
     if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
       return new byte[] { qualifier[offset], qualifier[offset + 1],
           qualifier[offset + 2], qualifier[offset + 3] };
@@ -791,21 +685,15 @@ public final class Internal {
    * @return A 2 or 4 byte qualifier for storage in column or compacted column
    * @since 2.0
    */
-  public static byte[] buildQualifier(final long timestamp, final short flags) {
+  public static byte[] buildQualifier(long timestamp, final short flags) {
     final long base_time;
     if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - ((timestamp / 1000) 
-          % Const.MAX_TIMESPAN));
-      final int qual = (int) (((timestamp - (base_time * 1000) 
-          << (Const.MS_FLAG_BITS)) | flags) | Const.MS_FLAG);
-      return Bytes.fromInt(qual);
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-      final short qual = (short) ((timestamp - base_time) << Const.FLAG_BITS
-          | flags);
-      return Bytes.fromShort(qual);
+      timestamp = timestamp / 1000;
     }
+    base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    final int qual = (int) ((timestamp - base_time) << Const.FLAG_BITS
+        | flags);
+    return Bytes.fromInt(qual);
   }
 
   /**

@@ -36,7 +36,7 @@ public class IncomingDataPoint {
   /** The incoming metric name */
   private String metric;
   
-  /** The incoming timestamp in Unix epoch seconds or milliseconds */
+  /** The incoming timestamp in Unix epoch seconds */
   private long timestamp;
   
   /** The incoming value as a string, we'll parse it to float or int later */
