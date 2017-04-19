@@ -16,8 +16,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -27,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.FileSystem;
 
 /**
@@ -56,9 +53,6 @@ public final class Plot {
   private ArrayList<DataPoints> datapoints =
     new ArrayList<DataPoints>();
 
-  /** List of global annotations */
-  private List<Annotation> globals = null;
-  
   /** Per-DataPoints Gnuplot options. */
   private ArrayList<String> options = new ArrayList<String>();
 
@@ -154,11 +148,6 @@ public final class Plot {
     this.height = height;
   }
 
-  /** @param globals A list of global annotation objects, may be null */
-  public void setGlobals(final List<Annotation> globals) {
-    this.globals = globals;
-  }
-  
   /**
    * Adds some data points to this plot.
    * @param datapoints The data points to plot.
@@ -336,32 +325,6 @@ public final class Plot {
       }
       
       // compile annotations to determine if we have any to graph
-      final List<Annotation> notes = new ArrayList<Annotation>();
-      for (int i = 0; i < nseries; i++) {
-        final DataPoints dp = datapoints.get(i);
-        final List<Annotation> series_notes = dp.getAnnotations();
-        if (series_notes != null && !series_notes.isEmpty()) {
-          notes.addAll(series_notes);
-        }
-      }
-      if (globals != null) {
-        notes.addAll(globals);
-      }
-      if (notes.size() > 0) {
-        Collections.sort(notes);
-        for(Annotation note : notes) {
-          String ts = Long.toString(note.getStartTime());
-          String value = new String(note.getDescription());
-          gp.append("set arrow from \"").append(ts).append("\", graph 0 to \"");
-          gp.append(ts).append("\", graph 1 nohead ls 3\n");
-          gp.append("set object rectangle at \"").append(ts);
-          gp.append("\", graph 0 size char (strlen(\"").append(value);
-          gp.append("\")), char 1 front fc rgbcolor \"white\"\n");
-          gp.append("set label \"").append(value).append("\" at \"");
-          gp.append(ts).append("\", graph 0 front center\n");
-        } 
-      }
-
       gp.write("plot ");
       for (int i = 0; i < nseries; i++) {
         final DataPoints dp = datapoints.get(i);
