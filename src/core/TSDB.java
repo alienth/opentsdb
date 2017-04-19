@@ -65,6 +65,10 @@ public final class TSDB {
   public static final Charset CHARSET = Charset.forName("ISO-8859-1");
   // private static short TAG_VALUE_WIDTH = 3;
 
+  static final byte[] INDEX_FAMILY = "tindex".getBytes(CHARSET);
+
+  static final byte[] INDEX_VALUE = { 0x00 };
+
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
 
@@ -595,12 +599,25 @@ public final class TSDB {
           return Deferred.fromResult(null);
         }
         
+        // TODO: Clean this up.
+        final class IndexCB implements Callback<Deferred<Object>, Object> {
+          @Override
+          public Deferred<Object> call(final Object write_result) throws Exception {
+            Deferred<Object> indexResult = null;
+            final byte[] indexRowKey = Arrays.copyOfRange(row, 0, Const.SALT_WIDTH() + metric.length);
+            final PutRequest index = new PutRequest(table, indexRowKey, INDEX_FAMILY, tags, INDEX_VALUE);
+            indexResult = client.put(index);
+            return indexResult;
+          }
+        }
+
         Bytes.setInt(row, (int) base_time, metric.length + Const.SALT_WIDTH() + 1);
         RowKey.prefixKeyWithSalt(row, metric, tags);
 
         Deferred<Object> result = null;
         final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);
         result = client.put(point);
+        result.addCallback(new IndexCB());
 
         // Count all added datapoints, not just those that came in through PUT rpc
         // Will there be others? Well, something could call addPoint programatically right?
