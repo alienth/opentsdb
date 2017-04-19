@@ -39,13 +39,11 @@ import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
 
-import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.StorageExceptionHandler;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
-import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.tools.StartupPlugin;
 import net.opentsdb.stats.Histogram;
@@ -86,9 +84,6 @@ public final class TSDB {
   /** Optional Startup Plugin to use if configured */
   private StartupPlugin startup = null;
 
-  /** Optional real time pulblisher plugin to use if configured */
-  private RTPublisher rt_publisher = null;
-  
   /** Plugin for dealing with data points that can't be stored */
   private StorageExceptionHandler storage_exception_handler = null;
 
@@ -159,9 +154,6 @@ public final class TSDB {
       Tags.setAllowSpecialChars(config.getString("tsd.core.tag.allow_specialchars"));
     }
     
-    // load up the functions that require the TSDB object
-    ExpressionFactory.addTSDBFunctions(this);
-    
     // set any extra tags from the config for stats
     StatsCollector.setGlobalTags(config);
     
@@ -231,27 +223,6 @@ public final class TSDB {
       throw new RuntimeException("Failed to instantiate filters", e);
     }
 
-    // load the real time publisher plugin if enabled
-    if (config.getBoolean("tsd.rtpublisher.enable")) {
-      rt_publisher = PluginLoader.loadSpecificPlugin(
-          config.getString("tsd.rtpublisher.plugin"), RTPublisher.class);
-      if (rt_publisher == null) {
-        throw new IllegalArgumentException(
-            "Unable to locate real time publisher plugin: " + 
-            config.getString("tsd.rtpublisher.plugin"));
-      }
-      try {
-        rt_publisher.initialize(this);
-      } catch (Exception e) {
-        throw new RuntimeException(
-            "Failed to initialize real time publisher plugin", e);
-      }
-      LOG.info("Successfully initialized real time publisher plugin [" + 
-          rt_publisher.getClass().getCanonicalName() + "] version: " 
-          + rt_publisher.version());
-    } else {
-      rt_publisher = null;
-    }
     
     // load the storage exception plugin if enabled
     if (config.getBoolean("tsd.core.storage_exception_handler.enable")) {
@@ -438,14 +409,6 @@ public final class TSDB {
       } finally {
         collector.clearExtraTag("plugin");
       }
-    }
-    if (rt_publisher != null) {
-      try {
-        collector.addExtraTag("plugin", "publish");
-        rt_publisher.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }                        
     }
     if (storage_exception_handler != null) {
       try {
@@ -639,14 +602,6 @@ public final class TSDB {
         // Will there be others? Well, something could call addPoint programatically right?
         datapoints_added.incrementAndGet();
 
-        // TODO(tsuna): Add a callback to time the latency of HBase and store the
-        // timing in a moving Histogram (once we have a class for this).
-        
-        if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
-            !config.enable_tsuid_tracking() && rt_publisher == null) {
-          return result;
-        }
-        
         return result;
       }
       @Override
@@ -765,11 +720,6 @@ public final class TSDB {
       LOG.info("Shutting down startup plugin: " +
               startup.getClass().getCanonicalName());
       deferreds.add(startup.shutdown());
-    }
-    if (rt_publisher != null) {
-      LOG.info("Shutting down RT plugin: " + 
-          rt_publisher.getClass().getCanonicalName());
-      deferreds.add(rt_publisher.shutdown());
     }
     if (storage_exception_handler != null) {
       LOG.info("Shutting down storage exception handler plugin: " + 
