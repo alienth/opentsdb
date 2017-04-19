@@ -19,6 +19,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -270,18 +271,13 @@ final class RowSeq implements DataPoints {
   }
 
   /** @return an empty list since aggregated tags cannot exist on a single row */
-  public List<String> getAggregatedTags() {
-    return Collections.emptyList();
+  public Set<String> getAggregatedTags() {
+    return Collections.emptySet();
   }
   
   public Deferred<List<String>> getAggregatedTagsAsync() {
     final List<String> empty = Collections.emptyList();
     return Deferred.fromResult(empty);
-  }
-  
-  @Override
-  public List<byte[]> getAggregatedTagUids() {
-    return Collections.emptyList();
   }
   
   public List<String> getTSUIDs() {

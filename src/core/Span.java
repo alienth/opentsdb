@@ -15,14 +15,12 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
-
-import com.stumbleupon.async.Deferred;
 
 /**
  * Represents a read-only sequence of continuous data points.
@@ -73,20 +71,10 @@ final class Span implements DataPoints {
   }
 
   /** @return an empty list since aggregated tags cannot exist on a single span */
-  public List<String> getAggregatedTags() {
-    return Collections.emptyList();
+  public Set<String> getAggregatedTags() {
+    return Collections.emptySet();
   }
   
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
-  }
-  
-  @Override
-  public List<byte[]> getAggregatedTagUids() {
-    return Collections.emptyList();
-  }
-
   /** @return the number of data points in this span, O(n)
    * Unfortunately we must walk the entire array for every row as there may be a 
    * mix of second and millisecond timestamps */

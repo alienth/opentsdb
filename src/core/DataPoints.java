@@ -12,11 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import com.stumbleupon.async.Deferred;
 
 /**
  * Represents a read-only sequence of continuous data points.

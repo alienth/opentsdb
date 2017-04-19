@@ -500,56 +500,57 @@ final class Fsck {
      * @return True if the row key is valid, false if it is not
      * @throws Exception If something goes pear shaped.
      */
+    // TODO replace this
     private boolean fsckKey(final byte[] key) throws Exception {
-      if (key.length < key_prefix_length || 
-          (key.length - key_prefix_length) % key_tags_length != 0) {
-        LOG.error("Invalid row key.\n\tKey: " + UniqueId.uidToString(key));
-        bad_key.getAndIncrement();
+      // if (key.length < key_prefix_length || 
+      //     (key.length - key_prefix_length) % key_tags_length != 0) {
+      //   LOG.error("Invalid row key.\n\tKey: " + UniqueId.uidToString(key));
+      //   bad_key.getAndIncrement();
         
-        if (options.fix() && options.deleteBadRows()) {
-          final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-          tsdb.getClient().delete(delete);
-          bad_key_fixed.getAndIncrement();
-        }
-        return false;
-      }
+      //   if (options.fix() && options.deleteBadRows()) {
+      //     final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
+      //     tsdb.getClient().delete(delete);
+      //     bad_key_fixed.getAndIncrement();
+      //   }
+      //   return false;
+      // }
       
-      // Process the time series ID by resolving the UIDs to names if we haven't
-      // already seen this particular TSUID. Note that getTSUID accounts for salt
-      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(), 
-          Const.TIMESTAMP_BYTES);
-      if (!tsuids.contains(tsuid)) {
-        try {
-          RowKey.metricNameAsync(tsdb, key).joinUninterruptibly();
-        } catch (NoSuchUniqueId nsui) {
-          LOG.error("Unable to resolve the metric from the row key.\n\tKey: "
-              + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
-          orphans.getAndIncrement();
+      // // Process the time series ID by resolving the UIDs to names if we haven't
+      // // already seen this particular TSUID. Note that getTSUID accounts for salt
+      // final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(), 
+      //     Const.TIMESTAMP_BYTES);
+      // if (!tsuids.contains(tsuid)) {
+      //   try {
+      //     RowKey.metricNameAsync(tsdb, key).joinUninterruptibly();
+      //   } catch (NoSuchUniqueId nsui) {
+      //     LOG.error("Unable to resolve the metric from the row key.\n\tKey: "
+      //         + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
+      //     orphans.getAndIncrement();
           
-          if (options.fix() && options.deleteOrphans()) {
-            final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getClient().delete(delete);
-            orphans_fixed.getAndIncrement();
-          }
-          return false;
-        }
+      //     if (options.fix() && options.deleteOrphans()) {
+      //       final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
+      //       tsdb.getClient().delete(delete);
+      //       orphans_fixed.getAndIncrement();
+      //     }
+      //     return false;
+      //   }
         
-        try {
-          Tags.resolveIds(tsdb, (ArrayList<byte[]>)
-              UniqueId.getTagPairsFromTSUID(tsuid));
-        } catch (NoSuchUniqueId nsui) {
-          LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: "
-              + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
-          orphans.getAndIncrement();
+      //   try {
+      //     Tags.resolveIds(tsdb, (ArrayList<byte[]>)
+      //         UniqueId.getTagPairsFromTSUID(tsuid));
+      //   } catch (NoSuchUniqueId nsui) {
+      //     LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: "
+      //         + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
+      //     orphans.getAndIncrement();
           
-          if (options.fix() && options.deleteOrphans()) {
-            final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getClient().delete(delete);
-            orphans_fixed.getAndIncrement();
-          }
-          return false;
-        }
-      }
+      //     if (options.fix() && options.deleteOrphans()) {
+      //       final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
+      //       tsdb.getClient().delete(delete);
+      //       orphans_fixed.getAndIncrement();
+      //     }
+      //     return false;
+      //   }
+      // }
       return true;
     }
 
