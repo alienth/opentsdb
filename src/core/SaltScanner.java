@@ -371,18 +371,8 @@ public class SaltScanner {
           // the byte arrays so we'll just get a rough estimate of compacted
           // columns.
           for (final KeyValue kv : row) {
-            if (kv.qualifier().length % 2 == 0) {
-              if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-                ++dps_pre_filter;
-              } else {
-                // for now we'll assume that all compacted columns are of the 
-                // same precision. This is likely incorrect.
-                if (Internal.inMilliseconds(kv.qualifier())) {
-                  dps_pre_filter += (kv.qualifier().length / 4);
-                } else {
-                  dps_pre_filter += (kv.qualifier().length / 2);
-                }
-              }
+            if (kv.qualifier().length == 4) {
+              ++dps_pre_filter;
             } else {
                  throw new IllegalDataException(
                      "Invalid qualifier"
@@ -478,18 +468,8 @@ public class SaltScanner {
       // the byte arrays so we'll just get a rough estimate of compacted
       // columns.
       for (final KeyValue kv : row) {
-        if (kv.qualifier().length % 2 == 0) {
-          if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-            ++dps_post_filter;
-          } else {
-            // for now we'll assume that all compacted columns are of the 
-            // same precision. This is likely incorrect.
-            if (Internal.inMilliseconds(kv.qualifier())) {
-              dps_post_filter += (kv.qualifier().length / 4);
-            } else {
-              dps_post_filter += (kv.qualifier().length / 2);
-            }
-          }
+        if (kv.qualifier().length == 4) {
+          ++dps_post_filter;
         } else {
                  throw new IllegalDataException(
                      "Invalid qualifier"

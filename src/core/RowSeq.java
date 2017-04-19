@@ -341,29 +341,7 @@ final class RowSeq implements DataPoints {
 
   public long timestamp(final int i) {
     checkIndex(i);
-    // if we don't have a mix of second and millisecond qualifiers we can run
-    // this in O(1), otherwise we have to run O(n)
-    // Important: Span.addRow assumes this method to work in O(1).
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
-      Const.MS_MIXED_COMPACT) {
-      int index = 0;
-      for (int idx = 0; idx < qualifiers.length; idx += 2) {
-        if (i == index) {
-          return Internal.getTimestampFromQualifier(qualifiers, baseTime(), idx);
-        }
-        if (Internal.inMilliseconds(qualifiers[idx])) {
-          idx += 2;
-        }      
-        index++;
-      }
-    } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 4);
-    } else {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 2);
-    }
-    
-    throw new RuntimeException(
-        "WTF timestamp for index: " + i + " on " + this);
+    return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 4);
   }
 
   public boolean isInteger(final int i) {
@@ -501,13 +479,8 @@ final class RowSeq implements DataPoints {
         throw new NoSuchElementException("no more elements");
       }
       
-      if (Internal.inMilliseconds(qualifiers[qual_index])) {
-        qualifier = Bytes.getInt(qualifiers, qual_index);
-        qual_index += 4;
-      } else {
-        qualifier = Bytes.getUnsignedShort(qualifiers, qual_index);
-        qual_index += 2;
-      }
+      qualifier = Bytes.getInt(qualifiers, qual_index);
+      qual_index += 4;
       final byte flags = (byte) qualifier;
       value_index += (flags & Const.LENGTH_MASK) + 1;
       //LOG.debug("next -> now=" + toStringSummary());
@@ -532,13 +505,8 @@ final class RowSeq implements DataPoints {
       //LOG.debug("Peeking timestamp: " + (peekNextTimestamp() < timestamp));
       while (qual_index < len && peekNextTimestamp() < timestamp) {
         //LOG.debug("Moving to next timestamp: " + peekNextTimestamp());
-        if (Internal.inMilliseconds(qualifiers[qual_index])) {
-          qualifier = Bytes.getInt(qualifiers, qual_index);
-          qual_index += 4;
-        } else {
-          qualifier = Bytes.getUnsignedShort(qualifiers, qual_index);
-          qual_index += 2;
-        }
+        qualifier = Bytes.getInt(qualifiers, qual_index);
+        qual_index += 4;
         final byte flags = (byte) qualifier;
         value_index += (flags & Const.LENGTH_MASK) + 1;
       }

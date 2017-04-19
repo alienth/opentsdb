@@ -134,25 +134,21 @@ final class CompactionQueue  {
     }
 
     /**
-     * Check if there are no fixups or merges required.  This will be the case when:
+     * Check if there are no merges required.  This will be the case when:
      * <ul>
      *  <li>there are no columns in the heap</li>
-     *  <li>there is only one single-valued column needing no fixups</li>
+     *  <li>there is only one single-valued column</li>
      * </ul>
      *
      * @return true if we know no additional work is required
      */
-    private boolean noMergesOrFixups() {
+    private boolean noMerges() {
       switch (heap.size()) {
         case 0:
           // no data points, nothing to do
           return true;
         case 1:
-          // only one column, check to see if it needs fixups
-          ColumnDatapointIterator col = heap.peek();
-          // either a 2-byte qualifier or one 4-byte ms qualifier, and no fixups required
-          return (col.qualifier.length == 2 || (col.qualifier.length == 4
-              && Internal.inMilliseconds(col.qualifier))) && !col.needsFixup();
+          return true;
         default:
           // more than one column, need to merge
           return false;
@@ -175,8 +171,8 @@ final class CompactionQueue  {
       heap = new PriorityQueue<ColumnDatapointIterator>(nkvs);
       int tot_values = buildHeapProcessAnnotations();
 
-      // if there are no datapoints or only one that needs no fixup, we are done
-      if (noMergesOrFixups()) {
+      // if there are no datapoints or only one, we are done
+      if (noMerges()) {
         // return the single non-annotation entry if requested
         if (compacted != null && heap.size() == 1) {
           compacted[0] = findFirstDatapointColumn();
@@ -232,10 +228,7 @@ final class CompactionQueue  {
       for (final KeyValue kv : row) {
         byte[] qual = kv.qualifier();
         int len = qual.length;
-        // estimate number of points based on the size of the first entry
-        // in the column; if ms/sec datapoints are mixed, this will be
-        // incorrect, which will cost a reallocation/copy
-        final int entry_size = Internal.inMilliseconds(qual) ? 4 : 2;
+        final int entry_size = 4;
         tot_values += (len + entry_size - 1) / entry_size;
         if (longest == null || longest.qualifier().length < kv.qualifier().length) {
           longest = kv;
@@ -304,19 +297,8 @@ final class CompactionQueue  {
      */
     private KeyValue buildCompactedColumn(ByteBufferList compacted_qual,
         ByteBufferList compacted_val) {
-      // metadata is a single byte for a multi-value column, otherwise nothing
-      final int metadata_length = compacted_val.segmentCount() > 1 ? 1 : 0;
       final byte[] cq = compacted_qual.toBytes(0);
-      final byte[] cv = compacted_val.toBytes(metadata_length);
-
-      // add the metadata flag, which right now only includes whether we mix s/ms datapoints
-      if (metadata_length > 0) {
-        byte metadata_flag = 0;
-        if (ms_in_row && s_in_row) {
-          metadata_flag |= Const.MS_MIXED_COMPACT;
-        }
-        cv[cv.length - 1] = metadata_flag;
-      }
+      final byte[] cv = compacted_val.toBytes(0);
 
       final KeyValue first = row.get(0);
       return new KeyValue(first.key(), first.family(), cq, cv);

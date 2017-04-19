@@ -24,19 +24,11 @@ import org.hbase.async.KeyValue;
 */
 final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterator> {
 
-  /**
-   * @return true if this column needs one or more fixups applied.
-   */
-  public boolean needsFixup() {
-    return needs_fixup;
-  }
-
   private final long column_timestamp;
 
   // immutable once the constructor returns, but may need to be adjusted for fixups
   byte[] qualifier; // referenced by CompactionQueue
   private byte[] value;
-  private boolean needs_fixup;
 
   // pointers into the qualifier/value buffers
   private int qualifier_offset;
@@ -46,7 +38,6 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
   private int current_timestamp_offset;
   private int current_qual_length;
   private int current_val_length;
-  private boolean is_ms;
 
   /**
    * Create an entry for a column, which will be able to iterate over the individual values
@@ -62,24 +53,7 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
     this.value = kv.value();
     qualifier_offset = 0;
     value_offset = 0;
-    checkForFixup();
     update();
-  }
-
-  private void checkForFixup() {
-    // fixups predate compaction and ms-resolution timestamps, so are all exactly 2 bytes
-    if (qualifier.length == 2) {
-      final byte qual1 = qualifier[1];
-      if (Internal.floatingPointValueToFix(qual1, value)) {
-        value = Internal.fixFloatingPointValue(qual1, value);
-        needs_fixup = true;
-      }
-      final byte lenByte = Internal.fixQualifierFlags(qual1, value.length);
-      if (lenByte != qual1) {
-        qualifier = new byte[] { qualifier[0], lenByte };
-        needs_fixup = true;
-      }
-    }
   }
 
   /**
@@ -95,13 +69,6 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
    */
   public int getTimestampOffsetMs() {
     return current_timestamp_offset;
-  }
-
-  /**
-   * @return true if the current datapoint's timestamp is in milliseconds.
-   */
-  public boolean isMilliseconds() {
-    return is_ms;
   }
 
   /**
@@ -124,15 +91,10 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
   }
 
   /**
-   * @return a copy of the value of the current datapoint, after any fixups.
+   * @return a copy of the value of the current datapoint.
    */
   public byte[] getCopyOfCurrentValue() {
-    if (needs_fixup) {
-      assert value_offset == 0; // fixups should only be in single-value columns
-      return Internal.fixFloatingPointValue(qualifier[qualifier_offset + 1], value);
-    } else {
-      return Arrays.copyOfRange(value, value_offset, value_offset + current_val_length);
-    }
+    return Arrays.copyOfRange(value, value_offset, value_offset + current_val_length);
   }
 
   /**
@@ -150,13 +112,7 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
     if (qualifier_offset >= qualifier.length || value_offset >= value.length) {
       return false;
     }
-    if (Internal.inMilliseconds(qualifier[qualifier_offset])) {
-      current_qual_length = 4;
-      is_ms = true;
-    } else {
-      current_qual_length = 2;
-      is_ms = false;
-    }
+    current_qual_length = 4;
     current_timestamp_offset = Internal.getOffsetFromQualifier(qualifier, qualifier_offset);
     current_val_length = Internal.getValueLengthFromQualifier(qualifier, qualifier_offset);
     return true;

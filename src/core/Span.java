@@ -137,25 +137,6 @@ final class Span implements DataPoints {
     rows.add(rowseq);
   }
 
-  /**
-   * Package private helper to access the last timestamp in an HBase row.
-   * @param metric_width The number of bytes on which metric IDs are stored.
-   * @param row A compacted HBase row.
-   * @return A strictly positive timestamp in seconds or ms.
-   * @throws IllegalArgumentException if {@code row} doesn't contain any cell.
-   */
-  static long lastTimestampInRow(final short metric_width,
-                                 final KeyValue row) {
-    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width);
-    final byte[] qual = row.qualifier();
-    if (qual.length >= 4 && Internal.inMilliseconds(qual[qual.length - 4])) {
-      return (base_time * 1000) + ((Bytes.getUnsignedInt(qual, qual.length - 4) & 
-          0x0FFFFFC0) >>> (Const.MS_FLAG_BITS));
-    }
-    final short last_delta = (short)
-      (Bytes.getUnsignedShort(qual, qual.length - 2) >>> Const.FLAG_BITS);
-    return base_time + last_delta;
-  }
 
   /** @return an iterator to run over the list of data points */
   public SeekableView iterator() {
