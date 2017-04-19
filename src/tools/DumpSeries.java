@@ -271,6 +271,25 @@ final class DumpSeries {
     .append(tags);
   }
   
+  static void appendAnnotation(final StringBuilder buf, final KeyValue kv, 
+      final long base_time) {
+    final long timestamp = 
+        Internal.getTimestampFromQualifier(kv.qualifier(), base_time);
+    buf.append(Arrays.toString(kv.qualifier()))
+    .append("\t")
+    .append(Arrays.toString(kv.value()))
+    .append("\t")
+    .append(Internal.getOffsetFromQualifier(kv.qualifier(), 1) / 1000)
+    .append("\t")
+    .append(new String(kv.value(), Charset.forName("ISO-8859-1")))
+    .append("\t")
+    .append(timestamp)
+    .append("\t")
+    .append("(")
+    .append(date(timestamp))
+    .append(")");
+  }
+  
   /** Transforms a UNIX timestamp into a human readable date.  */
   static String date(final long timestamp) {
     if ((timestamp & Const.SECOND_MASK) != 0) {
