@@ -15,8 +15,6 @@ package net.opentsdb.query.filter;
 import java.util.Arrays;
 import java.util.Map;
 
-import net.opentsdb.core.Tags;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;

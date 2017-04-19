@@ -40,16 +40,8 @@ import net.opentsdb.core.QueryException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
-import net.opentsdb.tree.Branch;
-import net.opentsdb.tree.Tree;
-import net.opentsdb.tree.TreeRule;
-import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
@@ -72,16 +64,7 @@ class HttpJsonSerializer extends HttpSerializer {
   /** Type reference for uid assignments */
   private static TypeReference<HashMap<String, List<String>>> UID_ASSIGN =
     new TypeReference<HashMap<String, List<String>>>() {};
-  /** Type reference for common string/string maps */
-  private static TypeReference<HashMap<String, String>> TR_HASH_MAP = 
-    new TypeReference<HashMap<String, String>>() {};
-  private static TypeReference<ArrayList<TreeRule>> TR_TREE_RULES = 
-    new TypeReference<ArrayList<TreeRule>>() {};
-  private static TypeReference<HashMap<String, Object>> TR_HASH_MAP_OBJ = 
-    new TypeReference<HashMap<String, Object>>() {};
-  private static TypeReference<List<Annotation>> TR_ANNOTATIONS = 
-      new TypeReference<List<Annotation>>() {};
-    
+   
   /**
    * Default constructor necessary for plugin implementation
    */
@@ -194,26 +177,6 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
-   * Parses metric, tagk or tagv, and name to rename UID
-   * @return as hash map of type and name
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public HashMap<String, String> parseUidRenameV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, TR_HASH_MAP);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-
-  /**
    * Parses a timeseries data query
    * @return A TSQuery with data ready to validate
    * @throws JSONException if parsing failed
@@ -253,227 +216,6 @@ class HttpJsonSerializer extends HttpSerializer {
     }
   }
   
-  /**
-   * Parses a single UIDMeta object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public UIDMeta parseUidMetaV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, UIDMeta.class);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a single TSMeta object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public TSMeta parseTSMetaV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, TSMeta.class);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a single Tree object
-   * <b>Note:</b> Incoming data is a hash map of strings instead of directly 
-   * deserializing to a tree. We do it this way because we don't want users 
-   * messing with the timestamp fields. 
-   * @return A parsed Tree
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public Tree parseTreeV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      final HashMap<String, String> properties = 
-        JSON.parseToObject(json, TR_HASH_MAP);
-      
-      final Tree tree = new Tree();
-      for (Map.Entry<String, String> entry : properties.entrySet()) {
-        // skip nulls, empty is fine, but nulls are not welcome here
-        if (entry.getValue() == null) {
-          continue;
-        }
-        
-        if (entry.getKey().toLowerCase().equals("treeid")) {
-          tree.setTreeId(Integer.parseInt(entry.getValue()));
-        } else if (entry.getKey().toLowerCase().equals("name")) {
-          tree.setName(entry.getValue());
-        } else if (entry.getKey().toLowerCase().equals("description")) {
-          tree.setDescription(entry.getValue());
-        } else if (entry.getKey().toLowerCase().equals("notes")) {
-          tree.setNotes(entry.getValue());
-        } else if (entry.getKey().toLowerCase().equals("enabled")) {
-          if (entry.getValue().toLowerCase().equals("true")) {
-            tree.setEnabled(true);
-          } else {
-            tree.setEnabled(false);
-          }
-        } else if (entry.getKey().toLowerCase().equals("strictmatch")) {
-          if (entry.getValue().toLowerCase().equals("true")) {
-            tree.setStrictMatch(true);
-          } else {
-            tree.setStrictMatch(false);
-          }
-        } else if (entry.getKey().toLowerCase().equals("storefailures")) {
-          if (entry.getValue().toLowerCase().equals("true")) {
-            tree.setStoreFailures(true);
-          } else {
-            tree.setStoreFailures(false);
-          }
-        }
-      }
-      return tree;
-    } catch (NumberFormatException nfe) {
-      throw new BadRequestException("Unable to parse 'tree' value");
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a single TreeRule object
-   * @return A parsed tree rule
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public TreeRule parseTreeRuleV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TreeRule.class);
-  }
-  
-  /**
-   * Parses one or more tree rules
-   * @return A list of one or more rules
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public List<TreeRule> parseTreeRulesV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TR_TREE_RULES);
-  }
-  
-  /**
-   * Parses a tree ID and optional list of TSUIDs to search for collisions or
-   * not matched TSUIDs.
-   * @return A map with "treeId" as an integer and optionally "tsuids" as a 
-   * List<String> 
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public Map<String, Object> parseTreeTSUIDsListV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TR_HASH_MAP_OBJ);
-  }
-  
-  /**
-   * Parses an annotation object
-   * @return An annotation object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public Annotation parseAnnotationV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, Annotation.class);
-  }
-  
-  /**
-   * Parses a list of annotation objects
-   * @return A list of annotation object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public List<Annotation> parseAnnotationsV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TR_ANNOTATIONS);
-  }
-  
-  /**
-   * Parses a bulk annotation deletion query object
-   * @return Settings used to bulk delete annotations
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public AnnotationBulkDelete parseAnnotationBulkDeleteV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, AnnotationBulkDelete.class);
-  }
-  
-  /**
-   * Parses a SearchQuery request
-   * @return The parsed search query
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public SearchQuery parseSearchQueryV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, SearchQuery.class);
-  }
   
   /**
    * Formats the results of an HTTP data point storage request
@@ -542,27 +284,6 @@ class HttpJsonSerializer extends HttpSerializer {
     return this.serializeJSON(response);
   }
   
-  /**
-   * Format a response from the Uid Assignment RPC
-   * @param response A map of lists of pairs representing the results of the
-   * assignment
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatUidAssignV1(final 
-      Map<String, TreeMap<String, String>> response) {
-    return this.serializeJSON(response);
-  }
-  
-  /**
-   * Format a response from the Uid Rename RPC
-   * @param response A map of result and error of the rename
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatUidRenameV1(final Map<String, String> response) {
-    return this.serializeJSON(response);
-  }
   /**
    * Format the results from a timeseries data query
    * @param data_query The TSQuery object used to fetch the results
@@ -713,38 +434,6 @@ class HttpJsonSerializer extends HttpSerializer {
           
           if (data_query.getShowQuery()) {
             json.writeObjectField("query", orig_query);
-          }
-          
-          if (data_query.getShowTSUIDs()) {
-            json.writeFieldName("tsuids");
-            json.writeStartArray();
-            final List<String> tsuids = dps.getTSUIDs();
-            Collections.sort(tsuids);
-            for (String tsuid : tsuids) {
-              json.writeString(tsuid);
-            }
-            json.writeEndArray();
-          }
-          
-          if (!data_query.getNoAnnotations()) {
-            final List<Annotation> annotations = dps.getAnnotations();
-            if (annotations != null) {
-              Collections.sort(annotations);
-              json.writeArrayFieldStart("annotations");
-              for (Annotation note : annotations) {
-                json.writeObject(note);
-              }
-              json.writeEndArray();
-            }
-            
-            if (globals != null && !globals.isEmpty()) {
-              Collections.sort(globals);
-              json.writeArrayFieldStart("globalAnnotations");
-              for (Annotation note : globals) {
-                json.writeObject(note);
-              }
-              json.writeEndArray();
-            }
           }
           
           // now the fun stuff, dump the data and time just the iteration over
@@ -925,137 +614,6 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
-   * Format a single UIDMeta object
-   * @param meta The UIDMeta object to serialize
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatUidMetaV1(final UIDMeta meta) {
-    return this.serializeJSON(meta);
-  }
-  
-  /**
-   * Format a single TSMeta object
-   * @param meta The TSMeta object to serialize
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatTSMetaV1(final TSMeta meta) {
-    return this.serializeJSON(meta);
-  }
-  
-  /**
-   * Format a a list of TSMeta objects
-   * @param meta The list of TSMeta objects to serialize
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatTSMetaListV1(final List<TSMeta> metas) {
-    return this.serializeJSON(metas);
-  }
-  
-  /**
-   * Format a single Branch object
-   * @param branch The branch to serialize
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatBranchV1(final Branch branch) {
-    return this.serializeJSON(branch);
-  }
-  
-  /**
-   * Format a single tree object
-   * @param tree A tree to format
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatTreeV1(final Tree tree) {
-    return this.serializeJSON(tree);
-  }
-  
-  /**
-   * Format a list of tree objects. Note that the list may be empty if no trees
-   * were present.
-   * @param trees A list of one or more trees to serialize
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatTreesV1(final List<Tree> trees) {
-    return this.serializeJSON(trees);
-  }
-  
-  /**
-   * Format a single TreeRule object
-   * @param rule The rule to serialize
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatTreeRuleV1(final TreeRule rule) {
-    return serializeJSON(rule);
-  }
-  
-  /**
-   * Format a map of one or more TSUIDs that collided or were not matched
-   * @param results The list of results. Collisions: key = tsuid, value = 
-   * collided TSUID. Not Matched: key = tsuid, value = message about non matched
-   * rules.
-   * @param is_collision Whether or the map is a collision result set (true) or
-   * a not matched set (false).
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatTreeCollisionNotMatchedV1(
-      final Map<String, String> results, final boolean is_collisions) {
-    return serializeJSON(results);
-  }
-  
-  /**
-   * Format the results of testing one or more TSUIDs through a tree's ruleset
-   * @param results The list of results. Main map key is the tsuid. Child map:
-   * "branch" : Parsed branch result, may be null
-   * "meta" : TSMeta object, may be null
-   * "messages" : An ArrayList<String> of one or more messages 
-   * @return A JSON structure
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatTreeTestV1(final 
-      HashMap<String, HashMap<String, Object>> results) {
-    return serializeJSON(results);
-  }
-  
-  /**
-   * Format an annotation object
-   * @param note The annotation object to format
-   * @return A ChannelBuffer object to pass on to the caller
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatAnnotationV1(final Annotation note) {
-    return serializeJSON(note);
-  }
-  
-  /**
-   * Format a list of annotation objects
-   * @param notes The annotation objects to format
-   * @return A ChannelBuffer object to pass on to the caller
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatAnnotationsV1(final List<Annotation> notes) {
-    return serializeJSON(notes);
-  }
-  
-  /**
-   * Format the results of a bulk annotation deletion
-   * @param notes The annotation deletion request to return
-   * @return A ChannelBuffer object to pass on to the caller
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatAnnotationBulkDeleteV1(
-      final AnnotationBulkDelete request) {
-    return serializeJSON(request);
-  }
-  
-  /**
    * Format a list of statistics
    * @param note The statistics list to format
    * @return A ChannelBuffer object to pass on to the caller
@@ -1109,15 +667,6 @@ class HttpJsonSerializer extends HttpSerializer {
     return serializeJSON(query_stats);
   }
   
-  /**
-   * Format the response from a search query
-   * @param note The query (hopefully filled with results) to serialize
-   * @return A ChannelBuffer object to pass on to the caller
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatSearchResultsV1(final SearchQuery results) {
-    return serializeJSON(results);
-  }
   
   /**
    * Format the running configuration
