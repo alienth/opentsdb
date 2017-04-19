@@ -23,7 +23,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
@@ -50,7 +49,6 @@ final class CliUtils {
   /** Row key of the special row used to track the max ID already assigned. */
   static final byte[] MAXID_ROW;  
   static {
-    final Class<UniqueId> uidclass = UniqueId.class;
     try {
       // Those are all implementation details so they're not part of the
       // interface.  We access them anyway using reflection.  I think this
@@ -91,35 +89,6 @@ final class CliUtils {
   /** Qualifier for tagv UIDs */
   static final byte[] TAGV = "tagv".getBytes(CHARSET);
 
-  /**
-   * Returns the max metric ID from the UID table
-   * @param tsdb The TSDB to use for data access
-   * @return The max metric ID as an integer value, may be 0 if the UID table
-   * hasn't been initialized or is missing the UID row or metrics column.
-   * @throws IllegalStateException if the UID column can't be found or couldn't
-   * be parsed
-   */
-  static long getMaxMetricID(final TSDB tsdb) {
-    // first up, we need the max metric ID so we can split up the data table
-    // amongst threads.
-    final GetRequest get = new GetRequest(tsdb.uidTable(), new byte[] { 0 });
-    get.family("id".getBytes(CHARSET));
-    get.qualifier("metrics".getBytes(CHARSET));
-    ArrayList<KeyValue> row;
-    try {
-      row = tsdb.getClient().get(get).joinUninterruptibly();
-      if (row == null || row.isEmpty()) {
-        return 0;
-      }
-      final byte[] id_bytes = row.get(0).value();
-      if (id_bytes.length != 8) {
-        throw new IllegalStateException("Invalid metric max UID, wrong # of bytes");
-      }
-      return Bytes.getLong(id_bytes);
-    } catch (Exception e) {
-      throw new RuntimeException("Shouldn't be here", e);
-    }
-  }
   
   /**
    * Returns a scanner set to iterate over a range of metrics in the main 
