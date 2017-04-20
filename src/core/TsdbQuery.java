@@ -213,28 +213,6 @@ final class TsdbQuery implements Query {
     }
     TagVFilter.tagsToFilters(tags, filters);
     
-    // try {
-    //   for (final TagVFilter filter : this.filters) {
-    //     // filter.resolveTagkName(tsdb).join();
-    //   }
-    // } catch (final InterruptedException e) {
-    //   LOG.warn("Interrupted", e);
-    //   Thread.currentThread().interrupt();
-    // } catch (final Exception e) {
-    //   if (e instanceof DeferredGroupException) {
-    //     // rollback to the actual case. The DGE missdirects
-    //     Throwable ex = e.getCause();
-    //     while(ex != null && ex instanceof DeferredGroupException) {
-    //       ex = ex.getCause();
-    //     }
-    //     if (ex != null) {
-    //       throw (RuntimeException)ex;
-    //     }
-    //   }
-    //   LOG.error("Unexpected exception processing group bys", e);
-    //   throw new RuntimeException(e);
-    // }
-    
     findGroupBys();
     this.metric = metric;
     aggregator = function;
@@ -268,9 +246,6 @@ final class TsdbQuery implements Query {
     }
     downsampler = sub_query.downsamplingSpecification();
     filters = sub_query.getFilters();
-    if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
-      throw new IllegalArgumentException("This fork does not support TSUID queries.");
-    }
     findGroupBys();
     metric = sub_query.getMetric();
     return Deferred.fromResult(null);

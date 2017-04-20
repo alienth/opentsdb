@@ -31,10 +31,6 @@ import com.google.common.collect.ImmutableMap;
  * information such as the start time and list of queries. After setting the 
  * proper values, add the sub query to a {@link TSQuery}. 
  * <p>
- * When the query is processed by the TSD, if the {@code tsuids} list has one
- * or more timeseries, the {@code metric} and {@code tags} fields will be 
- * ignored and only the tsuids processed.
- * <p>
  * <b>Note:</b> You do not need to call {@link #validateAndSetQuery} directly as
  * the {@link TSQuery} object will call this for you when the entire set of 
  * queries has been compiled.
@@ -50,9 +46,6 @@ public final class TSSubQuery {
   /** User given name for a metric, e.g. "sys.cpu.0" */
   private String metric;
   
-  /** User provided list of timeseries UIDs */
-  private List<String> tsuids;
-
   /** User given downsampler */
   private String downsample;
   
@@ -90,7 +83,7 @@ public final class TSSubQuery {
   public int hashCode() {
     // NOTE: Do not add any non-user submitted variables to the hash. We don't
     // want the hash to change after validation.
-    return Objects.hashCode(aggregator, metric, tsuids, downsample, rate, 
+    return Objects.hashCode(aggregator, metric, downsample, rate, 
         rate_options, filters, explicit_tags);
   }
   
@@ -111,7 +104,6 @@ public final class TSSubQuery {
     final TSSubQuery query = (TSSubQuery)obj;
     return Objects.equal(aggregator, query.aggregator)
         && Objects.equal(metric, query.metric)
-        && Objects.equal(tsuids, query.tsuids)
         && Objects.equal(downsample, query.downsample)
         && Objects.equal(rate, query.rate)
         && Objects.equal(rate_options, query.rate_options)
@@ -132,17 +124,6 @@ public final class TSSubQuery {
         }
         buf.append(filter);
         ++counter;
-      }
-    }
-    buf.append("], tsuids=[");
-    if (tsuids != null && !tsuids.isEmpty()) {
-      int counter = 0;
-      for (String tsuid : tsuids) {
-        if (counter > 0) {
-          buf.append(", ");
-        }
-        buf.append(tsuid);
-        counter++;
       }
     }
     buf.append("], agg=")
@@ -183,11 +164,10 @@ public final class TSSubQuery {
           "No such aggregation function: " + aggregator);
     }
     
-    // we must have at least one TSUID OR a metric
-    if ((tsuids == null || tsuids.isEmpty()) && 
-        (metric == null || metric.isEmpty())) {
+    // we must have at least a metric
+    if (metric == null || metric.isEmpty()) {
       throw new IllegalArgumentException(
-          "Missing the metric or tsuids, provide at least one");
+          "Missing the metric, provide at least one");
     }
     
     // Make sure we have a filter list
@@ -244,11 +224,6 @@ public final class TSSubQuery {
   /** @return the user supplied metric */
   public String getMetric() {
     return metric;
-  }
-
-  /** @return the user supplied list of TSUIDs */
-  public List<String> getTsuids() {
-    return tsuids;
   }
 
   /** @return the user supplied list of group by query tags, may be empty.
@@ -315,11 +290,6 @@ public final class TSSubQuery {
   /** @param metric the name of a metric to fetch */
   public void setMetric(String metric) {
     this.metric = metric;
-  }
-
-  /** @param tsuids a list of timeseries UIDs as hex encoded strings to fetch */
-  public void setTsuids(List<String> tsuids) {
-    this.tsuids = tsuids;
   }
 
   /** @param tags an optional list of tags for specificity or grouping
