@@ -114,7 +114,7 @@ final public class RowKey {
     final Map<String, String> tagm = new HashMap<String, String>();
 
     for (String tag : tagStr.split(tag_delim_str)) {
-      String[] kv = tag.split(tag_equals_str, 1);
+      String[] kv = tag.split(tag_equals_str, 2);
       tagm.put(kv[0], kv[1]);
     }
     return tagm;
@@ -122,7 +122,7 @@ final public class RowKey {
 
   static String getTagString(byte[] key) {
     String keyStr = new String(key, CHARSET);
-    final int tagStart = keyStr.indexOf(field_delim) + Const.TIMESTAMP_BYTES;
+    final int tagStart = keyStr.indexOf(field_delim) + 1 + Const.TIMESTAMP_BYTES;
     return keyStr.substring(tagStart);
   }
 
