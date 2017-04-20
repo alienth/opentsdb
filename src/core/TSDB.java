@@ -568,8 +568,8 @@ public final class TSDB {
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
           + " to metric=" + metricStr + ", tags=" + tagm);
     }
-    byte[] metric = metricStr.getBytes(CHARSET);
-    byte[] tags = RowKey.tagsToBytes(tagm);
+    final byte[] metric = metricStr.getBytes(CHARSET);
+    final byte[] tags = RowKey.tagsToBytes(tagm);
     RowKey.checkMetricAndTags(metricStr, tagm);
     final byte[] row = RowKey.rowKeyTemplate(this, metric, tags);
     final long base_time;
