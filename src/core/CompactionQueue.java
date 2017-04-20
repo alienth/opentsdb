@@ -257,6 +257,7 @@ final class CompactionQueue  {
         final int ts = col.getTimestampOffsetMs();
         if (ts == prevTs) {
           // check to see if it is a complete duplicate, or if the value changed
+          // TODO - Address duplicates with varying data types.
           final byte[] existingVal = compacted_val.getLastSegment();
           final byte[] discardedVal = col.getCopyOfCurrentValue();
           if (!Arrays.equals(existingVal, discardedVal)) {

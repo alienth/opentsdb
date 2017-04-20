@@ -460,7 +460,7 @@ public final class Internal {
   public static int getOffsetFromQualifier(final byte[] qualifier, 
       final int offset) {
     validateQualifier(qualifier, offset);
-    final int seconds = (Bytes.getUnsignedShort(qualifier, offset) & 0xFFFFFFC0) 
+    final int seconds = (Bytes.getInt(qualifier, offset) & 0xFFFFFC00) 
       >>> Const.FLAG_BITS;
     return seconds * 1000;
   }
