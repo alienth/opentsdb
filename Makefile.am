@@ -84,6 +84,7 @@ tsdb_SRC := \
 	src/stats/StatsCollector.java	\
 	src/stats/QueryStats.java	\
 	src/tools/ArgP.java	\
+	src/tools/CliOptions.java	\
 	src/tools/TSDMain.java	\
 	src/tsd/AbstractHttpQuery.java	\
 	src/tsd/BadRequestException.java	\
