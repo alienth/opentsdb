@@ -55,6 +55,7 @@ public class QueryUtil {
    * @return A regular expression string to pass to the storage layer.
    */
   public static String getRowKeyRegex(
+      final String metric,
       final List<String> group_bys,
       final Map<String, String[]> row_key_literals, 
       final List<TagVFilter> filters) {
@@ -66,6 +67,18 @@ public class QueryUtil {
         TagVWildcardFilter wildcard = (TagVWildcardFilter) filter;
       }
     }
+
+    final int metric_width = metric.getBytes(TSDB.CHARSET).length;
+    final int prefix_width = metric_width + Const.TIMESTAMP_BYTES;
+    final StringBuilder buf = new StringBuilder(200);
+
+    buf.append("(?s)"  // Ensure we use the DOTALL flag.
+               + "^.{")
+       // ... start by skipping metric ID and timestamp.
+       .append(metric_width + 1 + Const.TIMESTAMP_BYTES)
+       .append("}");
+
+
 
     return "";
   }
@@ -204,6 +217,7 @@ public class QueryUtil {
    */
   public static void setDataTableScanFilter(
       final Scanner scanner, 
+      final String metric,
       final List<String> group_bys, 
       final Map<String, String[]> row_key_literals,
       final List<TagVFilter> filters,
@@ -215,7 +229,7 @@ public class QueryUtil {
       return;
     }
 
-    final String regex = getRowKeyRegex(group_bys, row_key_literals, filters);
+    final String regex = getRowKeyRegex(metric, group_bys, row_key_literals, filters);
     final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
         regex.toString(), Const.ASCII_CHARSET);
     if (LOG.isDebugEnabled()) {

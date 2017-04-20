@@ -879,7 +879,7 @@ final class TsdbQuery implements Query {
    * @param scanner The scanner on which to add the filter.
    */
   private void createAndSetFilter(final Scanner scanner) {
-    QueryUtil.setDataTableScanFilter(scanner, group_bys, row_key_literals, 
+    QueryUtil.setDataTableScanFilter(scanner, metric, group_bys, row_key_literals, 
         filters,
         (end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
