@@ -14,8 +14,10 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -760,9 +762,58 @@ final class TsdbQuery implements Query {
           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
         }
         return new SpanGroup[] { group };
-      } else {
-        throw new IllegalArgumentException("This fork doesn't support group_by");
       }
+  
+      // Maps group value IDs to the SpanGroup for those values. Say we've
+      // been asked to group by two things: foo=* bar=* Then the keys in this
+      // map will contain all the value IDs combinations we've seen. If the
+      // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
+      // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
+      // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
+      // foo=LOL bar=WTF and that the IDs of the tag values are:
+      // LOL=[0, 0, 1] OMG=[0, 0, 4] WTF=[0, 0, 3]
+      // then the map will have two keys:
+      // - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
+      // - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
+      final Map<String, SpanGroup> groups = new HashMap<String, SpanGroup>();
+      String group;
+      final StringBuilder buf = new StringBuilder();
+      for (final Map.Entry<byte[], Span> entry : spans.entrySet()) {
+        final byte[] row = entry.getKey();
+        Map<String, String> tags = RowKey.getTags(row);
+        // TODO(tsuna): The following loop has a quadratic behavior. We can
+        // make it much better since both the row key and group_bys are sorted.
+        for (final String tag : group_bys) {
+          buf.append(tags.get(tag));
+        }
+        group = buf.toString();
+        // if (value_id == null) {
+        //   LOG.error("WTF? Dropping span for row " + Arrays.toString(row)
+        //            + " as it had no matching tag from the requested groups,"
+        //            + " which is unexpected. Query=" + this);
+        //   continue;
+        // }
+        //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
+        SpanGroup thegroup = groups.get(group);
+        if (thegroup == null) {
+          thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
+                                   getScanEndTimeSeconds(),
+                                   null, rate, rate_options, aggregator,
+                                   downsampler,
+                                   getStartTime(), 
+                                   getEndTime(),
+                                   query_index);
+          groups.put(group, thegroup);
+        }
+        thegroup.add(entry.getValue());
+      }
+      //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
+      // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
+      //}
+      if (query_stats != null) {
+        query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
+      }
+      return groups.values().toArray(new SpanGroup[groups.size()]);
     }
   }
 
