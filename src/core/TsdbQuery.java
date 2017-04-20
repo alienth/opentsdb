@@ -337,7 +337,7 @@ final class TsdbQuery implements Query {
           literal_filters.add(current);
         }
 
-        if (next != null && tagk != next.getTagk()) {
+        if (next != null && !tagk.equals(next.getTagk())) {
           break;
         }
         next = look_ahead.hasNext() ? look_ahead.next() : null;

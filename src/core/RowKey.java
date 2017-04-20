@@ -13,7 +13,10 @@
 package net.opentsdb.core;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.hbase.async.Bytes;
@@ -86,7 +89,9 @@ final public class RowKey {
     byte[] tags = new byte[tag_size];
     short pos = 0;
 
-    for (final String key : tagm.keySet()) {
+    final List<String> sorted_tagks = new ArrayList<String>(tagm.keySet());
+    Collections.sort(sorted_tagks);
+    for (final String key : sorted_tagks) {
       final byte[] tagKey = key.getBytes(CHARSET);
       final byte[] tagVal = tagm.get(key).getBytes(CHARSET);
       copyInRowKey(tags, pos, tagKey);
