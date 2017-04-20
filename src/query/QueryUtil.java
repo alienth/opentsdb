@@ -330,7 +330,7 @@ public class QueryUtil {
 
     ArrayList<byte[]> indexKeys = new ArrayList<byte[]>( ( (stop - start) / Const.MAX_TIMESPAN ) + 1 );
 
-    for (int i = start; i < stop; i += Const.MAX_INT_IN_DOUBLE) {
+    for (int i = start; i < stop; i += Const.MAX_TIMESPAN) {
       byte[] key = new byte[key_length];
       System.arraycopy(metric, 0, key, 0, metric.length); // metric
       System.arraycopy(Bytes.fromInt(i), 0, key, metric.length + 1, Const.TIMESTAMP_BYTES); // new TS
