@@ -634,9 +634,6 @@ public class AggregationIterator implements SeekableView, DataPoint,
       if (x == x1) {
         return y1;
       }
-      if ((x1 & Const.MILLISECOND_MASK) != 0) {
-        throw new AssertionError("x1=" + x1 + " in " + this);
-      }
       final long r;
       switch (method) {
         case LERP:
@@ -698,9 +695,6 @@ public class AggregationIterator implements SeekableView, DataPoint,
       if (x == x1) {
         //LOG.debug("No lerp needed x == x1 (" + x + " == "+x1+") => " + y1);
         return y1;
-      }
-      if ((x1 & Const.MILLISECOND_MASK) != 0) {
-        throw new AssertionError("x1=" + x1 + " in " + this);
       }
       final double r;
       switch (method) {
