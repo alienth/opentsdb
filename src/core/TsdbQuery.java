@@ -342,7 +342,7 @@ final class TsdbQuery implements Query {
         }
         next = look_ahead.hasNext() ? look_ahead.next() : null;
       } while (current_iterator.hasNext() && 
-          tagk == current.getTagk());
+          tagk.equals(current.getTagk()));
 
       if (gbs > 0) {
         if (group_bys == null) {

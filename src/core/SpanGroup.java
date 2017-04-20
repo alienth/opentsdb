@@ -302,7 +302,7 @@ final class SpanGroup implements DataPoints {
         final String tag_value = tag_set.get(tag_pair.getKey());
         if (tag_value == null) {
           tag_set.put(tag_pair.getKey(), tag_pair.getValue());
-        } else if (tag_value != tag_pair.getValue()) {
+        } else if (!tag_value.equals(tag_pair.getValue())) {
           // bump to aggregated tags
           discards.add(tag_pair.getKey());
           tag_set.remove(tag_pair.getKey());
