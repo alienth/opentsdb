@@ -107,9 +107,9 @@ final class Span implements DataPoints {
       String error = null;
       if (key.length != last.key.length) {
         error = "row key length mismatch";
-      } else if (RowKey.metricName(key) != RowKey.metricName(last.key)) {
+      } else if (!RowKey.metricName(key).equals(RowKey.metricName(last.key))) {
         error = "metric mismatch";
-      } else if (RowKey.getTagString(key) != RowKey.getTagString(last.key)) {
+      } else if (!RowKey.getTagString(key).equals(RowKey.getTagString(last.key))) {
         error = "tags mismatch";
       }
       if (error != null) {

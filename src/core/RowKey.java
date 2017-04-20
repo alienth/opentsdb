@@ -44,7 +44,7 @@ final public class RowKey {
 
   /** Extracts the timestamp from a row key.  */
   static long baseTime(final byte[] row) {
-    return Bytes.getUnsignedInt(row, Bytes.indexOf(row, field_delim));
+    return Bytes.getUnsignedInt(row, Bytes.indexOf(row, field_delim) + 1);
   }
 
   /**
