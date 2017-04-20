@@ -598,7 +598,7 @@ public final class TSDB {
           @Override
           public Deferred<Object> call(final Object write_result) throws Exception {
             Deferred<Object> indexResult = null;
-            final byte[] indexRowKey = Arrays.copyOfRange(row, 0, metric.length);
+            final byte[] indexRowKey = Arrays.copyOfRange(row, 0, metric.length + 1 + Const.TIMESTAMP_BYTES);
             final PutRequest index = new PutRequest(table, indexRowKey, INDEX_FAMILY, tags, INDEX_VALUE);
             indexResult = client.put(index);
             return indexResult;

@@ -98,7 +98,7 @@ final public class RowKey {
       if (pos < tag_size) {
         // Only put the delim if this isn't the end.
         copyInRowKey(tags, pos, tag_delim);
-        pos += tagVal.length;
+        pos += tag_delim.length;
       }
     }
     return tags;
