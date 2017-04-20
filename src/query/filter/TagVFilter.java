@@ -16,29 +16,23 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.PluginLoader;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -114,12 +108,6 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   /** The raw, unparsed filter */
   final protected String filter;
   
-  /** The tag key converted into a UID */
-  protected byte[] tagk_bytes;
-  
-  /** An optional list of tag value UIDs if the filter matches on literals. */
-  protected List<byte[]> tagv_uids;
-
   protected List<String> tagvs;
   
   /** Whether or not to also group by this filter */
@@ -182,7 +170,6 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
        .append(getType())
        .append(", tagk=").append(tagk)
        .append(", group_by=").append(group_by)
-       .append(", tagk_bytes=").append(Bytes.pretty(tagk_bytes))
        .append(", config=")
        .append(debugInfo());
     return buf.toString();
@@ -448,7 +435,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   
   @Override
   public int compareTo(final TagVFilter filter) {
-    return Bytes.memcmpMaybeNull(tagk_bytes, filter.tagk_bytes);
+    return filter.tagk.compareTo(tagk);
   }
 
   /** @return a TagVFilter builder for constructing filters */

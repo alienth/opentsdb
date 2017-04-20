@@ -118,6 +118,9 @@ final class TsdbQuery implements Query {
   /** An object for storing stats in regarding the query. May be null */
   private QueryStats query_stats;
   
+  /** Whether or not to match series with ONLY the given tags */
+  private boolean explicit_tags;
+  
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -220,6 +223,15 @@ final class TsdbQuery implements Query {
     this.rate_options = rate_options;
   }
 
+  /**
+   * @param explicit_tags Whether or not to match only on the given tags
+   * @since 2.3
+   */
+  public void setExplicitTags(final boolean explicit_tags) {
+    this.explicit_tags = explicit_tags;
+  }
+  
+
   @Override
   public Deferred<Object> configureFromQuery(final TSQuery query, 
       final int index) {
@@ -246,6 +258,7 @@ final class TsdbQuery implements Query {
     }
     downsampler = sub_query.downsamplingSpecification();
     filters = sub_query.getFilters();
+    explicit_tags = sub_query.getExplicitTags();
     findGroupBys();
     metric = sub_query.getMetric();
     return Deferred.fromResult(null);
@@ -880,7 +893,7 @@ final class TsdbQuery implements Query {
    */
   private void createAndSetFilter(final Scanner scanner) {
     QueryUtil.setDataTableScanFilter(scanner, metric, group_bys, row_key_literals, 
-        filters,
+        explicit_tags, filters,
         (end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
         : (int) getScanEndTimeSeconds()));
