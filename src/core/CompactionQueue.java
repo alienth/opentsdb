@@ -276,8 +276,7 @@ final class CompactionQueue  {
         } else {
           prevTs = ts;
           col.writeToBuffers(compacted_qual, compacted_val);
-          ms_in_row |= col.isMilliseconds();
-          s_in_row |= !col.isMilliseconds();
+          s_in_row = true; // TODO - nuke
         }
         if (col.advance()) {
           // there is still more data in this column, so add it back to the heap

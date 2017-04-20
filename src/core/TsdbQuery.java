@@ -518,7 +518,7 @@ final class TsdbQuery implements Query {
              final String keyMetric = RowKey.metricName(key);
              final String keyTags = RowKey.getTagString(key);
 
-             if (keyMetric != metric) {
+             if (!keyMetric.equals(metric)) {
                scanner.close();
                throw new IllegalDataException(
                    "HBase returned a row that doesn't match"
