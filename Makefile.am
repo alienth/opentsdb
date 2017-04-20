@@ -34,8 +34,6 @@ tsdb_SRC := \
 	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
-	src/core/AppendDataPoints.java	\
-	src/core/BatchedDataPoints.java \
 	src/core/ByteBufferList.java	\
 	src/core/ColumnDatapointIterator.java	\
 	src/core/CompactionQueue.java	\
@@ -48,7 +46,6 @@ tsdb_SRC := \
 	src/core/FillingDownsampler.java \
 	src/core/FillPolicy.java \
 	src/core/IncomingDataPoint.java	\
-	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
 	src/core/MutableDataPoint.java \
@@ -58,7 +55,6 @@ tsdb_SRC := \
 	src/core/RateSpan.java  \
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
-	src/core/SaltScanner.java	\
 	src/core/SeekableView.java	\
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
@@ -67,41 +63,9 @@ tsdb_SRC := \
 	src/core/TsdbQuery.java	\
 	src/core/TSQuery.java	\
 	src/core/TSSubQuery.java	\
-	src/core/WritableDataPoints.java	\
 	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
-	src/meta/Annotation.java	\
-	src/meta/MetaDataCache.java	\
-	src/meta/TSMeta.java	\
-	src/meta/TSUIDQuery.java	\
-	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
-	src/query/expression/Absolute.java	\
-	src/query/expression/Alias.java	\
-	src/query/expression/DiffSeries.java	\
-	src/query/expression/DivideSeries.java	\
-	src/query/expression/EDPtoDPS.java	\
-	src/query/expression/Expression.java	\
-	src/query/expression/ExpressionDataPoint.java	\
-	src/query/expression/ExpressionFactory.java	\
-	src/query/expression/ExpressionIterator.java	\
-	src/query/expression/ExpressionReader.java	\
-	src/query/expression/Expressions.java	\
-	src/query/expression/ExpressionTree.java	\
-	src/query/expression/HighestCurrent.java	\
-	src/query/expression/HighestMax.java	\
-	src/query/expression/IntersectionIterator.java	\
-	src/query/expression/ITimeSyncedIterator.java	\
-	src/query/expression/NumericFillPolicy.java	\
-	src/query/expression/MovingAverage.java	\
-	src/query/expression/MultiplySeries.java	\
-	src/query/expression/PostAggregatedDataPoints.java	\
-	src/query/expression/Scale.java	\
-	src/query/expression/SumSeries.java	\
-	src/query/expression/TimeShift.java \
-	src/query/expression/TimeSyncedIterator.java	\
-	src/query/expression/UnionIterator.java	\
-	src/query/expression/VariableIterator.java	\
 	src/query/filter/TagVFilter.java	\
 	src/query/filter/TagVLiteralOrFilter.java	\
 	src/query/filter/TagVNotKeyFilter.java	\
@@ -109,7 +73,6 @@ tsdb_SRC := \
 	src/query/filter/TagVRegexFilter.java	\
 	src/query/filter/TagVWildcardFilter.java	\
 	src/query/pojo/Downsampler.java	\
-	src/query/pojo/Expression.java	\
 	src/query/pojo/Filter.java	\
 	src/query/pojo/Join.java	\
 	src/query/pojo/Metric.java	\
@@ -117,37 +80,12 @@ tsdb_SRC := \
 	src/query/pojo/Query.java	\
 	src/query/pojo/Timespan.java	\
 	src/query/pojo/Validatable.java	\
-	src/search/SearchPlugin.java	\
-	src/search/SearchQuery.java	\
-	src/search/TimeSeriesLookup.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
 	src/stats/QueryStats.java	\
-	src/tools/ArgP.java	\
-	src/tools/CliOptions.java	\
-	src/tools/CliQuery.java	\
-	src/tools/CliUtils.java	\
-	src/tools/DumpSeries.java	\
-	src/tools/Fsck.java	\
-	src/tools/FsckOptions.java	\
-	src/tools/MetaPurge.java	\
-	src/tools/MetaSync.java	\
-	src/tools/Search.java	\
-	src/tools/StartupPlugin.java \
-	src/tools/TSDMain.java	\
-	src/tools/TextImporter.java	\
-	src/tools/TreeSync.java	\
-	src/tools/UidManager.java	\
-	src/tree/Branch.java	\
-	src/tree/Leaf.java	\
-	src/tree/Tree.java	\
-	src/tree/TreeBuilder.java	\
-	src/tree/TreeRule.java	\
 	src/tsd/AbstractHttpQuery.java	\
-	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
 	src/tsd/ConnectionManager.java	\
-	src/tsd/DropCachesRpc.java \
 	src/tsd/GnuplotException.java	\
 	src/tsd/GraphHandler.java	\
 	src/tsd/HttpJsonSerializer.java	\
@@ -160,29 +98,16 @@ tsdb_SRC := \
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
 	src/tsd/PutDataPointRpc.java	\
-	src/tsd/QueryExecutor.java	\
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
 	src/tsd/RpcManager.java	\
 	src/tsd/RpcUtil.java \
-	src/tsd/RTPublisher.java	\
-	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
 	src/tsd/StatsRpc.java	\
 	src/tsd/StorageExceptionHandler.java	\
-	src/tsd/SuggestRpc.java	\
 	src/tsd/TelnetRpc.java	\
-	src/tsd/TreeRpc.java	\
-	src/tsd/UniqueIdRpc.java	\
 	src/tsd/WordSplitter.java	\
-	src/uid/FailedToAssignUniqueIdException.java	\
-	src/uid/NoSuchUniqueId.java	\
-	src/uid/NoSuchUniqueName.java	\
-	src/uid/RandomUniqueId.java	\
-	src/uid/UniqueId.java	\
-	src/uid/UniqueIdFilterPlugin.java \
-	src/uid/UniqueIdInterface.java \
 	src/utils/ByteArrayPair.java \
 	src/utils/ByteSet.java \
 	src/utils/Config.java \
@@ -243,18 +168,15 @@ test_SRC := \
 	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
 	test/core/TestAppendDataPoints.java \
-	test/core/TestBatchedDataPoints.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestDownsampler.java \
 	test/core/TestDownsamplingSpecification.java \
 	test/core/TestFillingDownsampler.java \
-	test/core/TestIncomingDataPoints.java	\
 	test/core/TestInternal.java	\
 	test/core/TestMutableDataPoint.java	\
 	test/core/TestRateSpan.java	\
 	test/core/TestRowKey.java	\
 	test/core/TestRowSeq.java	\
-	test/core/TestSaltScanner.java	\
 	test/core/TestSpan.java	\
 	test/core/TestSpanGroup.java	\
 	test/core/TestTags.java	\
@@ -272,31 +194,6 @@ test_SRC := \
 	test/core/TestTSQuery.java	\
 	test/core/TestTSSubQuery.java	\
 	test/plugin/DummyPlugin.java \
-	test/meta/TestAnnotation.java	\
-	test/meta/TestTSMeta.java	\
-	test/meta/TestTSUIDQuery.java	\
-	test/meta/TestUIDMeta.java	\
-	test/query/expression/BaseTimeSyncedIteratorTest.java	\
-	test/query/expression/TestAbsolute.java	\
-	test/query/expression/TestAlias.java	\
-	test/query/expression/TestDiffSeries.java	\
-	test/query/expression/TestDivideSeries.java	\
-	test/query/expression/TestExpressionFactory.java	\
-	test/query/expression/TestExpressionIterator.java	\
-	test/query/expression/TestExpressionReader.java	\
-	test/query/expression/TestExpressions.java	\
-	test/query/expression/TestExpressionTree.java	\
-	test/query/expression/TestHighestCurrent.java	\
-	test/query/expression/TestHighestMax.java	\
-	test/query/expression/TestIntersectionIterator.java	\
-	test/query/expression/TestNumericFillPolicy.java	\
-	test/query/expression/TestMovingAverage.java	\
-	test/query/expression/TestMultiplySeries.java	\
-	test/query/expression/TestPostAggregatedDataPoints.java	\
-	test/query/expression/TestScale.java	\
-	test/query/expression/TestSumSeries.java	\
-	test/query/expression/TestTimeSyncedIterator.java	\
-	test/query/expression/TestUnionIterator.java	\
 	test/query/filter/TestTagVFilter.java	\
 	test/query/filter/TestTagVLiteralOrFilter.java	\
 	test/query/filter/TestTagVNotKeyFilter.java	\
@@ -304,53 +201,28 @@ test_SRC := \
 	test/query/filter/TestTagVRegexFilter.java	\
 	test/query/filter/TestTagVWildcardFilter.java	\
 	test/query/pojo/TestDownsampler.java	\
-	test/query/pojo/TestExpression.java	\
 	test/query/pojo/TestFilter.java	\
 	test/query/pojo/TestJoin.java	\
 	test/query/pojo/TestMetric.java	\
 	test/query/pojo/TestOutput.java	\
 	test/query/pojo/TestQuery.java	\
 	test/query/pojo/TestTimeSpan.java	\
-	test/search/TestSearchPlugin.java	\
-	test/search/TestSearchQuery.java	\
-	test/search/TestTimeSeriesLookup.java	\
 	test/stats/TestHistogram.java	\
 	test/stats/TestQueryStats.java	\
 	test/storage/MockBase.java	\
 	test/storage/MockDataPoints.java	\
-	test/tools/TestDumpSeries.java	\
-	test/tools/TestCliUtils.java	\
-	test/tools/TestFsck.java	\
-	test/tools/TestFsckSalted.java	\
-	test/tools/TestTextImporter.java	\
-	test/tools/TestUID.java	\
-	test/tree/TestBranch.java	\
-	test/tree/TestLeaf.java	\
-	test/tree/TestTree.java	\
-	test/tree/TestTreeBuilder.java	\
-	test/tree/TestTreeRule.java	\
 	test/tsd/NettyMocks.java	\
-	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
 	test/tsd/TestHttpJsonSerializer.java	\
 	test/tsd/TestHttpQuery.java	\
 	test/tsd/TestHttpRpcPluginQuery.java	\
 	test/tsd/TestPutRpc.java	\
-	test/tsd/TestQueryExecutor.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestQueryRpcLastDataPoint.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
 	test/tsd/TestRpcManager.java	\
-	test/tsd/TestRTPublisher.java	\
-	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestStatsRpc.java \
-	test/tsd/TestSuggestRpc.java	\
-	test/tsd/TestTreeRpc.java	\
-	test/tsd/TestUniqueIdRpc.java	\
-	test/uid/TestNoSuchUniqueId.java	\
-	test/uid/TestRandomUniqueId.java	\
-	test/uid/TestUniqueId.java \
 	test/utils/TestByteArrayPair.java \
 	test/utils/TestByteSet.java \
 	test/utils/TestConfig.java \
@@ -363,21 +235,17 @@ test_SRC := \
 test_plugin_SRC := \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \
-  test/search/DummySearchPlugin.java \
   test/tsd/DummyHttpSerializer.java \
   test/tsd/DummyHttpRpcPlugin.java \
   test/tsd/DummyRpcPlugin.java \
-  test/tsd/DummyRTPublisher.java \
   test/tsd/DummySEHPlugin.java
 
 # Do NOT include the test dir path, just the META portion
 test_plugin_SVCS := \
   META-INF/services/net.opentsdb.plugin.DummyPlugin \
-  META-INF/services/net.opentsdb.search.SearchPlugin \
   META-INF/services/net.opentsdb.tsd.HttpSerializer \
   META-INF/services/net.opentsdb.tsd.HttpRpcPlugin \
   META-INF/services/net.opentsdb.tsd.RpcPlugin \
-  META-INF/services/net.opentsdb.tsd.RTPublisher \
   META-INF/services/net.opentsdb.tsd.StorageExceptionHandler
   
 test_plugin_MF := \
