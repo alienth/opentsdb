@@ -31,7 +31,6 @@ import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-import net.opentsdb.core.Const;
 import net.opentsdb.core.QueryException;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.utils.DateTime;
@@ -537,8 +536,7 @@ public class QueryStats {
       final Pair<QueryStat, QueryStat> names = AGG_MAP.get(cumulation.getKey());
       addStat(names.getKey(),  
           (cumulation.getValue().getKey() / 
-              (scanner_stats.size() * 
-                  Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1)));
+              (scanner_stats.size())));
       addStat(names.getValue(), cumulation.getValue().getValue());
     }
     overall_cumulations.clear();
@@ -613,8 +611,7 @@ public class QueryStats {
       final QueryStat name, final long value) {
     Map<Integer, Map<QueryStat, Long>> qs = scanner_stats.get(query_index);
     if (qs == null) {
-      qs = new ConcurrentHashMap<Integer, Map<QueryStat, Long>>(
-              Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1);
+      qs = new ConcurrentHashMap<Integer, Map<QueryStat, Long>>(1);
       scanner_stats.put(query_index, qs);
     }
     Map<QueryStat, Long> scanner_stat_map = qs.get(id);
@@ -635,8 +632,7 @@ public class QueryStats {
       final Set<String> servers) {
     Map<Integer, Set<String>> query_servers = scanner_servers.get(query_index);
     if (query_servers == null) {
-      query_servers = new ConcurrentHashMap<Integer, Set<String>>(
-          Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1);
+      query_servers = new ConcurrentHashMap<Integer, Set<String>>(1);
       scanner_servers.put(query_index, query_servers);
     }
     query_servers.put(id, servers);

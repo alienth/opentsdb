@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.filter;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
@@ -93,21 +94,19 @@ public class TagVLiteralOrFilter extends TagVFilter {
     return "{literals=" + literals + ", case=" + case_insensitive + "}";
   }
   
-  /**
-   * Overridden here so that we can resolve the literal values if we don't have
-   * too many of them AND we're not searching with case insensitivity.
-   */
   @Override
-  public Deferred<byte[]> resolveTagkName(final TSDB tsdb) {
-    final Config config = tsdb.getConfig();
-    
-    // resolve tag values if the filter is NOT case insensitive and there are 
-    // fewer literals than the expansion limit
-    if (!case_insensitive && 
-        literals.size() <= config.getInt("tsd.query.filter.expansion_limit")) {
-      return resolveTags(tsdb, literals);
-    } else {
-      return super.resolveTagkName(tsdb);
+  public void populateTagvs() {
+    this.tagvs = new ArrayList<String>(literals.size());
+    for (String literal : literals) {
+      StringBuilder buf = new StringBuilder(literal.length() + 10); // + 10 to have room for case regex
+      if (case_insensitive) {
+        buf.append("(?i)");
+      }
+      buf.append(literal);
+      if (case_insensitive) {
+        buf.append("(?-i)");
+      }
+      this.tagvs.add(buf.toString());
     }
   }
   

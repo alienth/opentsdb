@@ -142,7 +142,6 @@ final public class RowKey {
     int row_size = (metric.length +
                     1 +
                     Const.TIMESTAMP_BYTES +
-                    1 +
                     tags.length);
     final byte[] row = new byte[row_size];
 

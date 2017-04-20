@@ -325,7 +325,10 @@ final class TsdbQuery implements Query {
         if (current.isGroupBy()) {
           gbs++;
         }
-        if (!current.getTagVs().isEmpty()) {
+        if (current.getTagVs() == null) {
+          current.populateTagvs();
+        }
+        if (current.getTagVs() != null && !current.getTagVs().isEmpty()) {
           for (final String tagv : current.getTagVs()) {
             literals.add(tagv);
           }

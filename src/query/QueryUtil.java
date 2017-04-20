@@ -313,17 +313,17 @@ public class QueryUtil {
    * @return A scanner ready for processing.
    */
   public static Scanner getMetricScanner(final TSDB tsdb, final int salt_bucket, 
-      final String metric, final int start, final int stop, 
+      final String metricStr, final int start, final int stop, 
       final byte[] table, final byte[] family) {
-    final int metric_width = metric.getBytes(TSDB.CHARSET).length;
-    final byte[] start_row = new byte[metric_width + 1 + Const.TIMESTAMP_BYTES];
-    final byte[] end_row = new byte[metric_width + 1 + Const.TIMESTAMP_BYTES];
+    final byte[] metric = metricStr.getBytes(TSDB.CHARSET);
+    final byte[] start_row = new byte[metric.length + 1 + Const.TIMESTAMP_BYTES];
+    final byte[] end_row = new byte[metric.length + 1 + Const.TIMESTAMP_BYTES];
     
-    Bytes.setInt(start_row, start, metric_width);
-    Bytes.setInt(end_row, stop, metric_width);
+    Bytes.setInt(start_row, start, metric.length + 1);
+    Bytes.setInt(end_row, stop, metric.length + 1);
     
-    System.arraycopy(metric, 0, start_row, 0, metric_width);
-    System.arraycopy(metric, 0, end_row, 0, metric_width);
+    System.arraycopy(metric, 0, start_row, 0, metric.length);
+    System.arraycopy(metric, 0, end_row, 0, metric.length);
     
     final Scanner scanner = tsdb.getClient().newScanner(table);
     scanner.setMaxNumRows(tsdb.getConfig().scanner_maxNumRows());
