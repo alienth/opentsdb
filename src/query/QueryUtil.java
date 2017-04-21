@@ -318,6 +318,7 @@ public class QueryUtil {
    */
   public static Scanner getMetricScanner(final TSDB tsdb, final int salt_bucket, 
       final String metricStr, final int start, final int stop, 
+      final long real_start, final long real_stop,
       final byte[] table, final byte[] family) {
     final byte[] metric = metricStr.getBytes(TSDB.CHARSET);
     final int key_length = metric.length + 1 + Const.TIMESTAMP_BYTES;
@@ -344,6 +345,8 @@ public class QueryUtil {
     scanner.setMaxNumRows(tsdb.getConfig().scanner_maxNumRows());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
+    scanner.setStartTimestamp((int) (real_start / 1000));
+    scanner.setStopTimestamp((int) (real_stop / 1000));
     scanner.setFamily(family);
     scanner.setMetric(metric);
     scanner.setIndexKeys(indexKeys);
