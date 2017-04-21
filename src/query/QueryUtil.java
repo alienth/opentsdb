@@ -135,7 +135,7 @@ public class QueryUtil {
         // be sure to close off the look ahead
         buf.append(")");
       }
-      buf.append("(?:|$)");
+      buf.append("(?::|$)");
     }
     // Skip any number of tags before the end.
     if (!explicit_tags) {
