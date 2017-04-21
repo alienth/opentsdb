@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.filter;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -114,14 +115,23 @@ public class TagVWildcardFilter extends TagVFilter {
   }
 
   private String toRegex() {
-    String regex;
+    StringBuilder buf = new StringBuilder(this.filter.length() + 20); // + 20 to have room for case regex
 
-    regex = tagk;
-    regex += case_insensitive ? ":(?i)" : ":";
-    regex += this.filter.replaceAll("\\*", ".*?");
-    regex += case_insensitive ? "(?-i)" : "";
+    if (case_insensitive) {
+      buf.append("(?i)");
+    }
+    buf.append(this.filter.replaceAll("\\*", ".*?"));
+    if (case_insensitive) {
+      buf.append("(?-i)");
+    }
 
-    return regex;
+    return buf.toString();
+  }
+
+  @Override
+  public void populateTagvs() {
+    this.tagvs = new ArrayList<String>(1);
+    this.tagvs.add(this.regexp);
   }
 
   @Override
