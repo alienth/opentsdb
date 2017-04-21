@@ -92,6 +92,7 @@ public class QueryUtil {
 
     // If we want to get host=ny-jharvey02
     // ^.{metric_width + timestamp_width}(?:.*?\:*)host=ny-jharvey02(?::|$).*
+    // ^.{metric_width + timestamp_width}(?:.*\:)host=ny-jharvey02(?::|$).*
     //
 
 
@@ -103,7 +104,7 @@ public class QueryUtil {
       
       // Skip any number of tags.
       if (!explicit_tags) {
-        buf.append("(?:.*?:*)");
+        buf.append("(?:.*:)*");
       }
 
       if (not_key) {
@@ -134,10 +135,11 @@ public class QueryUtil {
         // be sure to close off the look ahead
         buf.append(")");
       }
+      buf.append("(?:|$)");
     }
     // Skip any number of tags before the end.
     if (!explicit_tags) {
-      buf.append("(?::|$).*");
+      buf.append(".*");
     }
     return buf.toString();
   }

@@ -120,7 +120,7 @@ public class TagVWildcardFilter extends TagVFilter {
     if (case_insensitive) {
       buf.append("(?i)");
     }
-    buf.append(this.filter.replaceAll("\\*", ".*?"));
+    buf.append(this.filter.replaceAll("\\*", "[^:\\$]+"));
     if (case_insensitive) {
       buf.append("(?-i)");
     }
