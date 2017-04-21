@@ -787,6 +787,7 @@ final class TsdbQuery implements Query {
           buf.append(tags.get(tag));
         }
         group = buf.toString();
+        buf.setLength(0);
         // if (value_id == null) {
         //   LOG.error("WTF? Dropping span for row " + Arrays.toString(row)
         //            + " as it had no matching tag from the requested groups,"
