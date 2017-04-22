@@ -58,7 +58,6 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.MetaDataCache;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
@@ -233,9 +232,6 @@ public final class TSDB {
     if (config.getString("tsd.core.tag.allow_specialchars") != null) {
       Tags.setAllowSpecialChars(config.getString("tsd.core.tag.allow_specialchars"));
     }
-    
-    // load up the functions that require the TSDB object
-    ExpressionFactory.addTSDBFunctions(this);
     
     // set any extra tags from the config for stats
     StatsCollector.setGlobalTags(config);

@@ -76,32 +76,6 @@ tsdb_SRC := \
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
-	src/query/expression/Absolute.java	\
-	src/query/expression/Alias.java	\
-	src/query/expression/DiffSeries.java	\
-	src/query/expression/DivideSeries.java	\
-	src/query/expression/EDPtoDPS.java	\
-	src/query/expression/Expression.java	\
-	src/query/expression/ExpressionDataPoint.java	\
-	src/query/expression/ExpressionFactory.java	\
-	src/query/expression/ExpressionIterator.java	\
-	src/query/expression/ExpressionReader.java	\
-	src/query/expression/Expressions.java	\
-	src/query/expression/ExpressionTree.java	\
-	src/query/expression/HighestCurrent.java	\
-	src/query/expression/HighestMax.java	\
-	src/query/expression/IntersectionIterator.java	\
-	src/query/expression/ITimeSyncedIterator.java	\
-	src/query/expression/NumericFillPolicy.java	\
-	src/query/expression/MovingAverage.java	\
-	src/query/expression/MultiplySeries.java	\
-	src/query/expression/PostAggregatedDataPoints.java	\
-	src/query/expression/Scale.java	\
-	src/query/expression/SumSeries.java	\
-	src/query/expression/TimeShift.java \
-	src/query/expression/TimeSyncedIterator.java	\
-	src/query/expression/UnionIterator.java	\
-	src/query/expression/VariableIterator.java	\
 	src/query/filter/TagVFilter.java	\
 	src/query/filter/TagVLiteralOrFilter.java	\
 	src/query/filter/TagVNotKeyFilter.java	\
@@ -109,7 +83,6 @@ tsdb_SRC := \
 	src/query/filter/TagVRegexFilter.java	\
 	src/query/filter/TagVWildcardFilter.java	\
 	src/query/pojo/Downsampler.java	\
-	src/query/pojo/Expression.java	\
 	src/query/pojo/Filter.java	\
 	src/query/pojo/Join.java	\
 	src/query/pojo/Metric.java	\
@@ -160,7 +133,6 @@ tsdb_SRC := \
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
 	src/tsd/PutDataPointRpc.java	\
-	src/tsd/QueryExecutor.java	\
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
@@ -276,27 +248,6 @@ test_SRC := \
 	test/meta/TestTSMeta.java	\
 	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
-	test/query/expression/BaseTimeSyncedIteratorTest.java	\
-	test/query/expression/TestAbsolute.java	\
-	test/query/expression/TestAlias.java	\
-	test/query/expression/TestDiffSeries.java	\
-	test/query/expression/TestDivideSeries.java	\
-	test/query/expression/TestExpressionFactory.java	\
-	test/query/expression/TestExpressionIterator.java	\
-	test/query/expression/TestExpressionReader.java	\
-	test/query/expression/TestExpressions.java	\
-	test/query/expression/TestExpressionTree.java	\
-	test/query/expression/TestHighestCurrent.java	\
-	test/query/expression/TestHighestMax.java	\
-	test/query/expression/TestIntersectionIterator.java	\
-	test/query/expression/TestNumericFillPolicy.java	\
-	test/query/expression/TestMovingAverage.java	\
-	test/query/expression/TestMultiplySeries.java	\
-	test/query/expression/TestPostAggregatedDataPoints.java	\
-	test/query/expression/TestScale.java	\
-	test/query/expression/TestSumSeries.java	\
-	test/query/expression/TestTimeSyncedIterator.java	\
-	test/query/expression/TestUnionIterator.java	\
 	test/query/filter/TestTagVFilter.java	\
 	test/query/filter/TestTagVLiteralOrFilter.java	\
 	test/query/filter/TestTagVNotKeyFilter.java	\
@@ -304,7 +255,6 @@ test_SRC := \
 	test/query/filter/TestTagVRegexFilter.java	\
 	test/query/filter/TestTagVWildcardFilter.java	\
 	test/query/pojo/TestDownsampler.java	\
-	test/query/pojo/TestExpression.java	\
 	test/query/pojo/TestFilter.java	\
 	test/query/pojo/TestJoin.java	\
 	test/query/pojo/TestMetric.java	\
@@ -336,7 +286,6 @@ test_SRC := \
 	test/tsd/TestHttpQuery.java	\
 	test/tsd/TestHttpRpcPluginQuery.java	\
 	test/tsd/TestPutRpc.java	\
-	test/tsd/TestQueryExecutor.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestQueryRpcLastDataPoint.java	\
 	test/tsd/TestRpcHandler.java	\

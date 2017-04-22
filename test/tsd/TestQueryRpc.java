@@ -30,7 +30,6 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
-import net.opentsdb.query.expression.ExpressionTree;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.filter.TagVRegexFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
@@ -64,7 +63,6 @@ public final class TestQueryRpc {
   private QueryRpc rpc;
   private Query empty_query = mock(Query.class);
   private Query query_result;
-  private List<ExpressionTree> expressions;
   
   private static final Method parseQuery;
   static {
@@ -83,7 +81,6 @@ public final class TestQueryRpc {
     empty_query = mock(Query.class);
     query_result = mock(Query.class);
     rpc = new QueryRpc();
-    expressions = null;
     
     when(tsdb.newQuery()).thenReturn(query_result);
     when(empty_query.run()).thenReturn(new DataPoints[0]);
@@ -97,7 +94,7 @@ public final class TestQueryRpc {
   public void parseQueryMType() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertEquals("1h-ago", tsq.getStart());
     assertNotNull(tsq.getQueries());
@@ -111,7 +108,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWEnd() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&end=5m-ago&m=sum:sys.cpu.0");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertEquals("5m-ago", tsq.getEnd());
   }
   
@@ -119,7 +116,7 @@ public final class TestQueryRpc {
   public void parseQuery2MType() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0&m=avg:sys.cpu.1");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq.getQueries());
     assertEquals(2, tsq.getQueries().size());
     TSSubQuery sub1 = tsq.getQueries().get(0);
@@ -136,7 +133,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWRate() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:rate:sys.cpu.0");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertTrue(sub.getRate());
   }
@@ -145,7 +142,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWDS() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:1h-avg:sys.cpu.0");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertEquals("1h-avg", sub.getDownsample());
   }
@@ -154,7 +151,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWDSAndFill() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:1h-avg-lerp:sys.cpu.0");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertEquals("1h-avg-lerp", sub.getDownsample());
   }
@@ -163,7 +160,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWRateAndDS() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:1h-avg:rate:sys.cpu.0");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertTrue(sub.getRate());
     assertEquals("1h-avg", sub.getDownsample());
@@ -173,7 +170,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWTag() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=web01}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertNotNull(sub.getTags());
     assertEquals("literal_or(web01)", sub.getTags().get("host"));
@@ -184,7 +181,7 @@ public final class TestQueryRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=" + 
           TagVRegexFilter.FILTER_NAME + "(something(foo|bar))}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertEquals(1, sub.getFilters().size());
@@ -196,7 +193,7 @@ public final class TestQueryRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=" + 
           TagVWildcardFilter.FILTER_NAME + "(*quirm)}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertEquals(1, sub.getFilters().size());
@@ -207,7 +204,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWGroupByWildcardImplicit() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=*quirm}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertEquals(1, sub.getFilters().size());
@@ -218,7 +215,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWWildcardFilterExplicit() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{}{host=wildcard(*quirm)}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertEquals(1, sub.getFilters().size());
@@ -229,7 +226,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWWildcardFilterImplicit() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{}{host=*quirm}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertEquals(1, sub.getFilters().size());
@@ -240,7 +237,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWGroupByAndWildcardFilterExplicit() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{colo=lga}{host=wildcard(*quirm)}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
@@ -252,7 +249,7 @@ public final class TestQueryRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=quirm|tsort}"
       + "{host=wildcard(*quirm)}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
@@ -265,7 +262,7 @@ public final class TestQueryRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=wildcard(*tsort)}"
       + "{host=wildcard(*quirm)}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertEquals(2, sub.getFilters().size());
@@ -278,7 +275,7 @@ public final class TestQueryRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=wildcard(*tsort)}"
       + "{host=wildcard(*quirm)");
-    parseQuery.invoke(rpc, tsdb, query, expressions);
+    parseQuery.invoke(rpc, tsdb, query);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -286,7 +283,7 @@ public final class TestQueryRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=wildcard(*tsort)}"
       + "{hostwildcard(*quirm)}");
-    parseQuery.invoke(rpc, tsdb, query, expressions);
+    parseQuery.invoke(rpc, tsdb, query);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -294,14 +291,14 @@ public final class TestQueryRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=nosuchfilter(*tsort)}"
       + "{host=dummyfilter(*quirm)}");
-    parseQuery.invoke(rpc, tsdb, query, expressions);
+    parseQuery.invoke(rpc, tsdb, query);
   }
   
   @Test
   public void parseQueryMTypeWEmptyFilterBrackets() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0{}{}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     sub.validateAndSetQuery();
     assertEquals(0, sub.getFilters().size());
@@ -311,7 +308,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWExplicit() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:explicit_tags:sys.cpu.0{host=web01}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertNotNull(sub.getTags());
     assertEquals("literal_or(web01)", sub.getTags().get("host"));
@@ -322,7 +319,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWExplicitAndRate() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:explicit_tags:rate:sys.cpu.0{host=web01}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertNotNull(sub.getTags());
     assertEquals("literal_or(web01)", sub.getTags().get("host"));
@@ -334,7 +331,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWExplicitAndRateAndDS() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:explicit_tags:rate:1m-sum:sys.cpu.0{host=web01}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertNotNull(sub.getTags());
     assertEquals("literal_or(web01)", sub.getTags().get("host"));
@@ -347,7 +344,7 @@ public final class TestQueryRpc {
   public void parseQueryMTypeWExplicitAndDSAndRate() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:explicit_tags:1m-sum:rate:sys.cpu.0{host=web01}");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertNotNull(sub.getTags());
     assertEquals("literal_or(web01)", sub.getTags().get("host"));
@@ -360,7 +357,7 @@ public final class TestQueryRpc {
   public void parseQueryTSUIDType() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:010101");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertEquals("1h-ago", tsq.getStart());
     assertNotNull(tsq.getQueries());
@@ -375,7 +372,7 @@ public final class TestQueryRpc {
   public void parseQueryTSUIDTypeMulti() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:010101,020202");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertEquals("1h-ago", tsq.getStart());
     assertNotNull(tsq.getQueries());
@@ -391,7 +388,7 @@ public final class TestQueryRpc {
   public void parseQuery2TSUIDType() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:010101&tsuid=avg:020202");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertEquals("1h-ago", tsq.getStart());
     assertNotNull(tsq.getQueries());
@@ -412,7 +409,7 @@ public final class TestQueryRpc {
   public void parseQueryTSUIDTypeWRate() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:rate:010101");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertEquals("1h-ago", tsq.getStart());
     assertNotNull(tsq.getQueries());
@@ -428,7 +425,7 @@ public final class TestQueryRpc {
   public void parseQueryTSUIDTypeWDS() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:1m-sum:010101");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertEquals("1h-ago", tsq.getStart());
     assertNotNull(tsq.getQueries());
@@ -444,7 +441,7 @@ public final class TestQueryRpc {
   public void parseQueryTSUIDTypeWRateAndDS() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:1m-sum:rate:010101");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertEquals("1h-ago", tsq.getStart());
     assertNotNull(tsq.getQueries());
@@ -461,7 +458,7 @@ public final class TestQueryRpc {
   public void parseQueryWPadding() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0&padding");
-    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     assertNotNull(tsq);
     assertTrue(tsq.getPadding());
   }
@@ -470,14 +467,14 @@ public final class TestQueryRpc {
   public void parseQueryStartMissing() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?end=1h-ago&m=sum:sys.cpu.0");
-    parseQuery.invoke(rpc, tsdb, query, expressions);
+    parseQuery.invoke(rpc, tsdb, query);
   }
   
   @Test (expected = BadRequestException.class)
   public void parseQueryNoSubQuery() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago");
-    parseQuery.invoke(rpc, tsdb, query, expressions);
+    parseQuery.invoke(rpc, tsdb, query);
   }
   
   @Test
