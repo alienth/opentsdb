@@ -442,7 +442,7 @@ public final class Internal {
    * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
-  public static int getOffsetFromQualifier(final byte[] qualifier) {
+  public static long getOffsetFromQualifier(final byte[] qualifier) {
     return getOffsetFromQualifier(qualifier, 0);
   }
   
@@ -457,10 +457,10 @@ public final class Internal {
    * @since 2.0
    */
   // TODO this needs to become offset in seconds, since a 28-day ms offset won't fit in an int.
-  public static int getOffsetFromQualifier(final byte[] qualifier, 
+  public static long getOffsetFromQualifier(final byte[] qualifier, 
       final int offset) {
     validateQualifier(qualifier, offset);
-    final int seconds = (Bytes.getInt(qualifier, offset) & 0xFFFFFC00) 
+    final long seconds = (Bytes.getInt(qualifier, offset) & 0xFFFFFC00) 
       >>> Const.FLAG_BITS;
     return seconds * 1000;
   }

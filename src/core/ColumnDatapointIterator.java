@@ -35,7 +35,7 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
   private int value_offset;
 
   // data from the current point
-  private int current_timestamp_offset;
+  private long current_timestamp_offset;
   private int current_qual_length;
   private int current_val_length;
 
@@ -67,7 +67,7 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
    * @return the offset of the current datapoint from the column timestamp, in milliseconds
    * (regardless of the stored precision).
    */
-  public int getTimestampOffsetMs() {
+  public long getTimestampOffsetMs() {
     return current_timestamp_offset;
   }
 
@@ -122,7 +122,7 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
   // entry we are going to keep first, and don't have to copy over it)
   @Override
   public int compareTo(ColumnDatapointIterator o) {
-    int c = current_timestamp_offset - o.current_timestamp_offset;
+    int c = (int) (current_timestamp_offset - o.current_timestamp_offset);
     if (c == 0) {
       // note inverse order of comparison!
       c = Long.signum(o.column_timestamp - column_timestamp);

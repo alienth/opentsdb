@@ -112,12 +112,6 @@ final class CompactionQueue  {
     // heap of columns, ordered by increasing timestamp
     private PriorityQueue<ColumnDatapointIterator> heap;
 
-    // true if any ms-resolution datapoints have been seen in the column
-    private boolean ms_in_row;
-
-    // true if any s-resolution datapoints have been seen in the column
-    private boolean s_in_row;
-
     // KeyValue containing the longest qualifier for the datapoint, used to optimize
     // checking if the compacted qualifier already exists.
     private KeyValue longest;
@@ -251,10 +245,10 @@ final class CompactionQueue  {
      */
     private void mergeDatapoints(ByteBufferList compacted_qual, 
         ByteBufferList compacted_val) {
-      int prevTs = -1;
+      long prevTs = -1;
       while (!heap.isEmpty()) {
         final ColumnDatapointIterator col = heap.remove();
-        final int ts = col.getTimestampOffsetMs();
+        final long ts = col.getTimestampOffsetMs();
         if (ts == prevTs) {
           // check to see if it is a complete duplicate, or if the value changed
           // TODO - Address duplicates with varying data types.
@@ -277,7 +271,6 @@ final class CompactionQueue  {
         } else {
           prevTs = ts;
           col.writeToBuffers(compacted_qual, compacted_val);
-          s_in_row = true; // TODO - nuke
         }
         if (col.advance()) {
           // there is still more data in this column, so add it back to the heap
