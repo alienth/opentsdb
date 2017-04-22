@@ -153,35 +153,6 @@ public final class TestTSDB extends BaseTsdbTest {
   }
   
   @Test
-  public void initializePluginsSearch() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.core.plugin_path", "./");
-    props.put("tsd.search.enable", "true");
-    props.put("tsd.search.plugin", "net.opentsdb.search.DummySearchPlugin");
-    props.put("tsd.search.DummySearchPlugin.hosts", "localhost");
-    props.put("tsd.search.DummySearchPlugin.port", "42");
-    properties.setAccessible(false);
-    tsdb.initializePlugins(true);
-  }
-  
-  @Test (expected = RuntimeException.class)
-  public void initializePluginsSearchNotFound() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.search.enable", "true");
-    props.put("tsd.search.plugin", "net.opentsdb.search.DoesNotExist");
-    properties.setAccessible(false);
-    tsdb.initializePlugins(true);
-  }
-  
-  @Test
   public void initializePluginsSEH() throws Exception {
     config.overrideConfig("tsd.core.plugin_path", "./");
     config.overrideConfig("tsd.core.storage_exception_handler.enable", "true");

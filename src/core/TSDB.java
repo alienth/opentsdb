@@ -58,8 +58,6 @@ import net.opentsdb.meta.MetaDataCache;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tools.StartupPlugin;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
@@ -117,9 +115,6 @@ public final class TSDB {
    * row keys and will read re-compact them.
    */
   private final CompactionQueue compactionq;
-
-  /** Search indexer to use if configure */
-  private SearchPlugin search = null;
 
   /** Optional Startup Plugin to use if configured */
   private StartupPlugin startup = null;
@@ -301,25 +296,6 @@ public final class TSDB {
       throw new RuntimeException("Failed to instantiate filters", e);
     }
 
-    // load the search plugin if enabled
-    if (config.getBoolean("tsd.search.enable")) {
-      search = PluginLoader.loadSpecificPlugin(
-          config.getString("tsd.search.plugin"), SearchPlugin.class);
-      if (search == null) {
-        throw new IllegalArgumentException("Unable to locate search plugin: " + 
-            config.getString("tsd.search.plugin"));
-      }
-      try {
-        search.initialize(this);
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to initialize search plugin", e);
-      }
-      LOG.info("Successfully initialized search plugin [" + 
-          search.getClass().getCanonicalName() + "] version: " 
-          + search.version());
-    } else {
-      search = null;
-    }
     
     // load the real time publisher plugin if enabled
     if (config.getBoolean("tsd.rtpublisher.enable")) {
@@ -722,14 +698,6 @@ public final class TSDB {
       try {
         collector.addExtraTag("plugin", "publish");
         rt_publisher.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }                        
-    }
-    if (search != null) {
-      try {
-        collector.addExtraTag("plugin", "search");
-        search.collectStats(collector);
       } finally {
         collector.clearExtraTag("plugin");
       }                        
@@ -1158,11 +1126,6 @@ public final class TSDB {
               startup.getClass().getCanonicalName());
       deferreds.add(startup.shutdown());
     }
-    if (search != null) {
-      LOG.info("Shutting down search plugin: " + 
-          search.getClass().getCanonicalName());
-      deferreds.add(search.shutdown());
-    }
     if (rt_publisher != null) {
       LOG.info("Shutting down RT plugin: " + 
           rt_publisher.getClass().getCanonicalName());
@@ -1397,92 +1360,6 @@ public final class TSDB {
     return this.meta_table;
   }
 
-  /**
-   * Index the given timeseries meta object via the configured search plugin
-   * @param meta The meta data object to index
-   * @since 2.0
-   */
-  public void indexTSMeta(final TSMeta meta) {
-    if (search != null) {
-      search.indexTSMeta(meta).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Delete the timeseries meta object from the search index
-   * @param tsuid The TSUID to delete
-   * @since 2.0
-   */
-  public void deleteTSMeta(final String tsuid) {
-    if (search != null) {
-      search.deleteTSMeta(tsuid).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Index the given UID meta object via the configured search plugin
-   * @param meta The meta data object to index
-   * @since 2.0
-   */
-  public void indexUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.indexUIDMeta(meta).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Delete the UID meta object from the search index
-   * @param meta The UID meta object to delete
-   * @since 2.0
-   */
-  public void deleteUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.deleteUIDMeta(meta).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Index the given Annotation object via the configured search plugin
-   * @param note The annotation object to index
-   * @since 2.0
-   */
-  public void indexAnnotation(final Annotation note) {
-    if (search != null) {
-      search.indexAnnotation(note).addErrback(new PluginError());
-    }
-    if( rt_publisher != null ) {
-    	rt_publisher.publishAnnotation(note);
-    }
-  }
-  
-  /**
-   * Delete the annotation object from the search index
-   * @param note The annotation object to delete
-   * @since 2.0
-   */
-  public void deleteAnnotation(final Annotation note) {
-    if (search != null) {
-      search.deleteAnnotation(note).addErrback(new PluginError());
-    }
-  }
-  
-  /**
-   * Executes a search query using the search plugin
-   * @param query The query to execute
-   * @return A deferred object to wait on for the results to be fetched
-   * @throws IllegalStateException if the search plugin has not been enabled or
-   * configured
-   * @since 2.0
-   */
-  public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
-    if (search == null) {
-      throw new IllegalStateException(
-          "Searching has not been enabled on this TSD");
-    }
-    
-    return search.executeQuery(query);
-  }
-  
   /**
    * Simply logs plugin errors when they're thrown by attaching as an errorback. 
    * Without this, exceptions will just disappear (unless logged by the plugin) 

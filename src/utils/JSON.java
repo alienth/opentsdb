@@ -15,8 +15,6 @@ package net.opentsdb.utils;
 import java.io.IOException;
 import java.io.InputStream;
 
-import net.opentsdb.search.SearchQuery;
-import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 
@@ -373,20 +371,6 @@ public final class JSON {
     public UniqueIdType deserialize(final JsonParser parser, final
         DeserializationContext context) throws IOException {
       return UniqueId.stringToUniqueIdType(parser.getValueAsString());
-    }
-  }
-  
-  /**
-   * Helper class for deserializing Search type enum from human readable 
-   * strings
-   */
-  public static class SearchTypeDeserializer 
-    extends JsonDeserializer<SearchType> {
-    
-    @Override
-    public SearchType deserialize(final JsonParser parser, final
-        DeserializationContext context) throws IOException {
-      return SearchQuery.parseSearchType(parser.getValueAsString());
     }
   }
 }

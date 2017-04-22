@@ -43,7 +43,6 @@ import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
@@ -335,23 +334,6 @@ class HttpJsonSerializer extends HttpSerializer {
     }
     
     return JSON.parseToObject(json, AnnotationBulkDelete.class);
-  }
-  
-  /**
-   * Parses a SearchQuery request
-   * @return The parsed search query
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public SearchQuery parseSearchQueryV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, SearchQuery.class);
   }
   
   /**
@@ -917,16 +899,6 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   public ChannelBuffer formatQueryStatsV1(final Map<String, Object> query_stats) {
     return serializeJSON(query_stats);
-  }
-  
-  /**
-   * Format the response from a search query
-   * @param note The query (hopefully filled with results) to serialize
-   * @return A ChannelBuffer object to pass on to the caller
-   * @throws JSONException if serialization failed
-   */
-  public ChannelBuffer formatSearchResultsV1(final SearchQuery results) {
-    return serializeJSON(results);
   }
   
   /**

@@ -89,9 +89,6 @@ tsdb_SRC := \
 	src/query/pojo/Query.java	\
 	src/query/pojo/Timespan.java	\
 	src/query/pojo/Validatable.java	\
-	src/search/SearchPlugin.java	\
-	src/search/SearchQuery.java	\
-	src/search/TimeSeriesLookup.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
 	src/stats/QueryStats.java	\
@@ -104,7 +101,6 @@ tsdb_SRC := \
 	src/tools/FsckOptions.java	\
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
-	src/tools/Search.java	\
 	src/tools/StartupPlugin.java \
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
@@ -132,7 +128,6 @@ tsdb_SRC := \
 	src/tsd/RpcManager.java	\
 	src/tsd/RpcUtil.java \
 	src/tsd/RTPublisher.java	\
-	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
 	src/tsd/StatsRpc.java	\
 	src/tsd/StorageExceptionHandler.java	\
@@ -252,9 +247,6 @@ test_SRC := \
 	test/query/pojo/TestOutput.java	\
 	test/query/pojo/TestQuery.java	\
 	test/query/pojo/TestTimeSpan.java	\
-	test/search/TestSearchPlugin.java	\
-	test/search/TestSearchQuery.java	\
-	test/search/TestTimeSeriesLookup.java	\
 	test/stats/TestHistogram.java	\
 	test/stats/TestQueryStats.java	\
 	test/storage/MockBase.java	\
@@ -278,7 +270,6 @@ test_SRC := \
 	test/tsd/TestRpcPlugin.java	\
 	test/tsd/TestRpcManager.java	\
 	test/tsd/TestRTPublisher.java	\
-	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestStatsRpc.java \
 	test/tsd/TestSuggestRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\
@@ -297,7 +288,6 @@ test_SRC := \
 test_plugin_SRC := \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \
-  test/search/DummySearchPlugin.java \
   test/tsd/DummyHttpSerializer.java \
   test/tsd/DummyHttpRpcPlugin.java \
   test/tsd/DummyRpcPlugin.java \
@@ -307,7 +297,6 @@ test_plugin_SRC := \
 # Do NOT include the test dir path, just the META portion
 test_plugin_SVCS := \
   META-INF/services/net.opentsdb.plugin.DummyPlugin \
-  META-INF/services/net.opentsdb.search.SearchPlugin \
   META-INF/services/net.opentsdb.tsd.HttpSerializer \
   META-INF/services/net.opentsdb.tsd.HttpRpcPlugin \
   META-INF/services/net.opentsdb.tsd.RpcPlugin \

@@ -35,7 +35,6 @@ import net.opentsdb.core.TSQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
@@ -207,18 +206,6 @@ public abstract class HttpSerializer {
         " has not implemented parseUidRenameV1");
   }
 
-  /**
-   * Parses a SearchQuery request
-   * @return The parsed search query
-   * @throws BadRequestException if the plugin has not implemented this method
-   */
-  public SearchQuery parseSearchQueryV1() {
-    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-        "The requested API endpoint has not been implemented", 
-        this.getClass().getCanonicalName() + 
-        " has not implemented parseSearchQueryV1");
-  }
-  
   /**
    * Parses a timeseries data query
    * @return A TSQuery with data ready to validate
@@ -609,19 +596,6 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatQueryStatsV1");
-  }
-  
-  /**
-   * Format the response from a search query
-   * @param results The query (hopefully filled with results) to serialize
-   * @return A ChannelBuffer object to pass on to the caller
-   * @throws BadRequestException if the plugin has not implemented this method
-   */
-  public ChannelBuffer formatSearchResultsV1(final SearchQuery results) {
-    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-        "The requested API endpoint has not been implemented", 
-        this.getClass().getCanonicalName() + 
-        " has not implemented formatSearchResultsV1");
   }
   
   /**
