@@ -305,7 +305,6 @@ public final class RpcManager {
         http.put("api/serializers", new Serializers());
         http.put("api/stats", stats);
         http.put("api/suggest", suggest_rpc);
-        http.put("api/tree", new TreeRpc());
         http.put("api/uid", new UniqueIdRpc());
         http.put("api/version", version);
       }

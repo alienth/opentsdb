@@ -42,7 +42,6 @@ import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
 
-import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.StorageExceptionHandler;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -1465,18 +1464,6 @@ public final class TSDB {
     if (search != null) {
       search.deleteAnnotation(note).addErrback(new PluginError());
     }
-  }
-  
-  /**
-   * Processes the TSMeta through all of the trees if configured to do so
-   * @param meta The meta data to process
-   * @since 2.0
-   */
-  public Deferred<Boolean> processTSMetaThroughTrees(final TSMeta meta) {
-    if (config.enable_tree_processing()) {
-      return TreeBuilder.processAllTrees(this, meta);
-    }
-    return Deferred.fromResult(false);
   }
   
   /**

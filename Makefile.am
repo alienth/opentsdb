@@ -108,13 +108,7 @@ tsdb_SRC := \
 	src/tools/StartupPlugin.java \
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
-	src/tools/TreeSync.java	\
 	src/tools/UidManager.java	\
-	src/tree/Branch.java	\
-	src/tree/Leaf.java	\
-	src/tree/Tree.java	\
-	src/tree/TreeBuilder.java	\
-	src/tree/TreeRule.java	\
 	src/tsd/AbstractHttpQuery.java	\
 	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
@@ -144,7 +138,6 @@ tsdb_SRC := \
 	src/tsd/StorageExceptionHandler.java	\
 	src/tsd/SuggestRpc.java	\
 	src/tsd/TelnetRpc.java	\
-	src/tsd/TreeRpc.java	\
 	src/tsd/UniqueIdRpc.java	\
 	src/tsd/WordSplitter.java	\
 	src/uid/FailedToAssignUniqueIdException.java	\
@@ -272,11 +265,6 @@ test_SRC := \
 	test/tools/TestFsckSalted.java	\
 	test/tools/TestTextImporter.java	\
 	test/tools/TestUID.java	\
-	test/tree/TestBranch.java	\
-	test/tree/TestLeaf.java	\
-	test/tree/TestTree.java	\
-	test/tree/TestTreeBuilder.java	\
-	test/tree/TestTreeRule.java	\
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
@@ -293,7 +281,6 @@ test_SRC := \
 	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestStatsRpc.java \
 	test/tsd/TestSuggestRpc.java	\
-	test/tsd/TestTreeRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestRandomUniqueId.java	\
