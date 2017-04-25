@@ -617,10 +617,6 @@ final class TsdbQuery implements Query {
         */
        void processRow(final byte[] key, final ArrayList<KeyValue> row) {
          ++rows_post_filter;
-         if (delete) {
-           final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
-           tsdb.getClient().delete(del);
-         }
          
          // calculate estimated data point count. We don't want to deserialize
          // the byte arrays so we'll just get a rough estimate of compacted

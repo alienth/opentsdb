@@ -551,6 +551,9 @@ public final class TSDB {
     final byte[] tags = RowKey.tagsToBytes(tagm);
     RowKey.checkMetricAndTags(metricStr, tagm);
     final byte[] key = RowKey.rowKeyTemplate(this, metric, tags);
+    byte[] qualifier = new byte[6];
+    Bytes.setInt(qualifier, (int) timestamp);
+    Bytes.setShort(qualifier, flags, 4);
 
 
     /** Callback executed for chaining filter calls to see if the value
@@ -574,8 +577,11 @@ public final class TSDB {
           }
         }
 
+        byte[] new_value = new byte[qualifier.length + value.length];
+        System.arraycopy(qualifier, 0, new_value, 0, qualifier.length);
+        System.arraycopy(value, 0, new_value, qualifier.length, value.length);
         Deferred<Object> result = null;
-        final PutRequest point = new PutRequest(null, key, null, null, value);
+        final PutRequest point = new PutRequest(null, key, null, qualifier, new_value);
         result = client.lpush(point);
         result.addCallback(new IndexCB());
 
