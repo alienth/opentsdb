@@ -146,7 +146,6 @@ final public class RowKey {
       final byte[] tags) {
     int row_size = (metric.length +
                     1 +
-                    Const.TIMESTAMP_BYTES +
                     tags.length);
     final byte[] row = new byte[row_size];
 
@@ -159,7 +158,6 @@ final public class RowKey {
     // copyInRowKey(row, pos, delim); // delim is 00, which is what is initialized by default.
     pos += 1;
 
-    pos += Const.TIMESTAMP_BYTES;
     copyInRowKey(row, pos, tags);
 
     return row;

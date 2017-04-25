@@ -29,8 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
 import org.hbase.async.ClientStats;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
@@ -326,33 +324,6 @@ public final class TSDB {
   }
   
   /**
-   * Verifies that the data and UID tables exist in HBase and optionally the
-   * tree and meta data tables if the user has enabled meta tracking or tree
-   * building
-   * @return An ArrayList of objects to wait for
-   * @throws TableNotFoundException
-   * @since 2.0
-   */
-  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    final ArrayList<Deferred<Object>> checks = 
-      new ArrayList<Deferred<Object>>(2);
-    checks.add(client.ensureTableExists(
-        config.getString("tsd.storage.hbase.data_table")));
-    checks.add(client.ensureTableExists(
-        config.getString("tsd.storage.hbase.uid_table")));
-    if (config.enable_tree_processing()) {
-      checks.add(client.ensureTableExists(
-          config.getString("tsd.storage.hbase.tree_table")));
-    }
-    if (config.enable_realtime_ts() || config.enable_realtime_uid() || 
-        config.enable_tsuid_incrementing()) {
-      checks.add(client.ensureTableExists(
-          config.getString("tsd.storage.hbase.meta_table")));
-    }
-    return Deferred.group(checks);
-  }
-  
-  /**
    * Collects the stats and metrics tracked by this instance.
    * @param collector The collector to use.
    */
@@ -556,7 +527,7 @@ public final class TSDB {
   }
 
   private Deferred<Object> addPointInternal(final String metricStr,
-                                            final long timestamp,
+                                            long timestamp,
                                             final byte[] value,
                                             final Map<String, String> tagm,
                                             final short flags) {
@@ -568,21 +539,20 @@ public final class TSDB {
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
           + " to metric=" + metricStr + ", tags=" + tagm);
     }
+
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      timestamp = timestamp / 1000;
+    }
+
+    final byte[] new_value = new byte[value.length + 4];
+    Bytes.setInt(new_value, (int) timestamp, 0);
+    System.arraycopy(value, 0, new_value, 4, value.length);
     final byte[] metric = metricStr.getBytes(CHARSET);
     final byte[] tags = RowKey.tagsToBytes(tagm);
     RowKey.checkMetricAndTags(metricStr, tagm);
-    final byte[] row = RowKey.rowKeyTemplate(this, metric, tags);
-    final long base_time;
-    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-    
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-    }
-    
+    final byte[] key = RowKey.rowKeyTemplate(this, metric, tags);
+
+
     /** Callback executed for chaining filter calls to see if the value
      * should be written or not. */
     final class WriteCB implements Callback<Deferred<Object>, Boolean> {
@@ -598,18 +568,15 @@ public final class TSDB {
           @Override
           public Deferred<Object> call(final Object write_result) throws Exception {
             Deferred<Object> indexResult = null;
-            final byte[] indexRowKey = Arrays.copyOfRange(row, 0, metric.length + 1 + Const.TIMESTAMP_BYTES);
-            final PutRequest index = new PutRequest(table, indexRowKey, INDEX_FAMILY, tags, INDEX_VALUE);
-            indexResult = client.put(index);
+            final PutRequest index = new PutRequest(null, metric, null, null, tags);
+            indexResult = client.hsetnx(index);
             return indexResult;
           }
         }
 
-        Bytes.setInt(row, (int) base_time, metric.length + 1);
-
         Deferred<Object> result = null;
-        final PutRequest point = new PutRequest(table, row, metric, Bytes.fromInt((int) base_time), tags, FAMILY, qualifier, value);
-        result = client.put(point);
+        final PutRequest point = new PutRequest(null, key, null, null, value);
+        result = client.lpush(point);
         result.addCallback(new IndexCB());
 
         // Count all added datapoints, not just those that came in through PUT rpc
@@ -629,23 +596,6 @@ public final class TSDB {
           .addCallbackDeferring(new WriteCB());
     }
     return Deferred.fromResult(true).addCallbackDeferring(new WriteCB());
-  }
-
-  /**
-   * Forces a flush of any un-committed in memory data including left over 
-   * compactions.
-   * <p>
-   * For instance, any data point not persisted will be sent to HBase.
-   * @return A {@link Deferred} that will be called once all the un-committed
-   * data has been successfully and durably stored.  The value of the deferred
-   * object return is meaningless and unspecified, and can be {@code null}.
-   * @throws HBaseException (deferred) if there was a problem sending
-   * un-committed data to HBase.  Please refer to the {@link HBaseException}
-   * hierarchy to handle the possible failures.  Some of them are easily
-   * recoverable by retrying, some are not.
-   */
-  public Deferred<Object> flush() throws HBaseException {
-    return client.flush();
   }
 
   /**
@@ -800,10 +750,10 @@ public final class TSDB {
   // HBase operations helpers //
   // ------------------------ //
 
-  /** Gets the entire given row from the data table. */
-  final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
-    return client.get(new GetRequest(table, key, FAMILY));
-  }
+  // /** Gets the entire given row from the data table. */
+  // final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
+  //   return client.get(new GetRequest(table, key, FAMILY));
+  // }
 
   /** Puts the given value into the data table. */
   final Deferred<Object> put(final byte[] key,
@@ -812,9 +762,9 @@ public final class TSDB {
     return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
   }
 
-  /** Deletes the given cells from the data table. */
-  final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
-    return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
-  }
+  // /** Deletes the given cells from the data table. */
+  // final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
+  //   return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
+  // }
 
 }

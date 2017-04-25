@@ -188,9 +188,6 @@ final class TSDMain {
       }
       tsdb.initializePlugins(true);
       
-      // Make sure we don't even start if we can't find our tables.
-      tsdb.checkNecessaryTablesExist().joinUninterruptibly();
-      
       registerShutdownHook();
       final ServerBootstrap server = new ServerBootstrap(factory);
       
