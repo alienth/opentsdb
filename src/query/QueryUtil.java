@@ -321,35 +321,12 @@ public class QueryUtil {
       final long real_start, final long real_stop,
       final byte[] table, final byte[] family) {
     final byte[] metric = metricStr.getBytes(TSDB.CHARSET);
-    final int key_length = metric.length + 1 + Const.TIMESTAMP_BYTES;
-    final byte[] start_row = new byte[key_length];
-    final byte[] end_row = new byte[key_length];
-    
-    Bytes.setInt(start_row, start, metric.length + 1);
-    Bytes.setInt(end_row, stop, metric.length + 1);
-    
-    System.arraycopy(metric, 0, start_row, 0, metric.length);
-    System.arraycopy(metric, 0, end_row, 0, metric.length);
-
-    ArrayList<byte[]> indexKeys = new ArrayList<byte[]>( ( (stop - start) / Const.MAX_TIMESPAN ) + 1 );
-
-    for (int i = start; i < stop; i += Const.MAX_TIMESPAN) {
-      byte[] key = new byte[key_length];
-      System.arraycopy(metric, 0, key, 0, metric.length); // metric
-      System.arraycopy(Bytes.fromInt(i), 0, key, metric.length + 1, Const.TIMESTAMP_BYTES); // new TS
-      indexKeys.add(key);
-    }
-    
     
     final Scanner scanner = tsdb.getClient().newScanner(table);
     scanner.setMaxNumRows(tsdb.getConfig().scanner_maxNumRows());
-    scanner.setStartKey(start_row);
-    scanner.setStopKey(end_row);
     scanner.setStartTimestamp((int) (real_start / 1000));
     scanner.setStopTimestamp((int) (real_stop / 1000));
-    scanner.setFamily(family);
     scanner.setMetric(metric);
-    scanner.setIndexKeys(indexKeys);
     return scanner;
   }
   
