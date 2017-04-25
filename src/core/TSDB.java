@@ -551,7 +551,7 @@ public final class TSDB {
     final byte[] tags = RowKey.tagsToBytes(tagm);
     RowKey.checkMetricAndTags(metricStr, tagm);
     final byte[] key = RowKey.rowKeyTemplate(this, metric, tags);
-    byte[] qualifier = new byte[6];
+    final byte[] qualifier = new byte[6];
     Bytes.setInt(qualifier, (int) timestamp);
     Bytes.setShort(qualifier, flags, 4);
 
@@ -760,13 +760,6 @@ public final class TSDB {
   // final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
   //   return client.get(new GetRequest(table, key, FAMILY));
   // }
-
-  /** Puts the given value into the data table. */
-  final Deferred<Object> put(final byte[] key,
-                             final byte[] qualifier,
-                             final byte[] value) {
-    return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
-  }
 
   // /** Deletes the given cells from the data table. */
   // final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
