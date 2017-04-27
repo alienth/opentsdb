@@ -324,8 +324,8 @@ public class QueryUtil {
     
     final Scanner scanner = tsdb.getClient().newScanner(table);
     scanner.setMaxNumRows(tsdb.getConfig().scanner_maxNumRows());
-    // scanner.setStartTimestamp((int) (real_start / 1000));
-    // scanner.setStopTimestamp((int) (real_stop / 1000));
+    scanner.setStartTimestamp(start);
+    scanner.setStopTimestamp(stop);
     scanner.setMetric(metric);
     return scanner;
   }
