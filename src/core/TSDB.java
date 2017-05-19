@@ -438,19 +438,7 @@ public final class TSDB {
                                    final long timestamp,
                                    final long value,
                                    final Map<String, String> tags) {
-    final byte[] v;
-    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
-      v = new byte[] { (byte) value };
-    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
-      v = Bytes.fromShort((short) value);
-    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
-      v = Bytes.fromInt((int) value);
-    } else {
-      v = Bytes.fromLong(value);
-    }
-
-    final short flags = (short) (v.length - 1);  // Just the length.
-    return addPointInternal(metric, timestamp, v, tags, flags);
+    return addPointInternal(metric, timestamp, (double) value, tags);
   }
 
   /**
@@ -484,10 +472,9 @@ public final class TSDB {
                                          + " for metric=" + metric
                                          + " timestamp=" + timestamp);
     }
-    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
     return addPointInternal(metric, timestamp,
-                            Bytes.fromLong(Double.doubleToRawLongBits(value)),
-                            tags, flags);
+                            value,
+                            tags);
   }
 
   /**
@@ -520,40 +507,28 @@ public final class TSDB {
                                          + " for metric=" + metric
                                          + " timestamp=" + timestamp);
     }
-    final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
     return addPointInternal(metric, timestamp,
-                            Bytes.fromInt(Float.floatToRawIntBits(value)),
-                            tags, flags);
+                            (double) value,
+                            tags);
   }
 
   private Deferred<Object> addPointInternal(final String metricStr,
                                             long timestamp,
-                                            final byte[] value,
-                                            final Map<String, String> tagm,
-                                            final short flags) {
+                                            final double value,
+                                            final Map<String, String> tagm) {
     // we only accept positive unix epoch timestamps in seconds or milliseconds
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
-          + " when trying to add value=" + Arrays.toString(value) + '/' + flags
+          + " when trying to add value=" + value
           + " to metric=" + metricStr + ", tags=" + tagm);
     }
 
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      timestamp = timestamp / 1000;
-    }
-
-    final byte[] new_value = new byte[value.length + 4];
-    Bytes.setInt(new_value, (int) timestamp, 0);
-    System.arraycopy(value, 0, new_value, 4, value.length);
     // final byte[] metric = metricStr.getBytes(CHARSET);
     // final byte[] tags = RowKey.tagsToBytes(tagm);
     RowKey.checkMetricAndTags(metricStr, tagm);
     // final byte[] key = RowKey.rowKeyTemplate(this, metric, tags);
-    final byte[] qualifier = new byte[6];
-    Bytes.setInt(qualifier, (int) timestamp);
-    Bytes.setShort(qualifier, flags, 4);
 
 
     /** Callback executed for chaining filter calls to see if the value
@@ -577,13 +552,15 @@ public final class TSDB {
         //   }
         // }
 
-        byte[] new_value = new byte[qualifier.length + value.length];
-        System.arraycopy(qualifier, 0, new_value, 0, qualifier.length);
-        System.arraycopy(value, 0, new_value, qualifier.length, value.length);
         Deferred<Object> result = null;
         // final PutRequest point = new PutRequest(null, key, null, tagm, null, null, new_value);
         // result = client.lpush(point);
-        result = client.insert(metricStr, tagm, new_value);
+        long ts = timestamp;
+        if ((timestamp & Const.SECOND_MASK) == 0) {
+          ts = timestamp * 1000;
+        }
+
+        result = client.insert(metricStr, tagm, ts, value);
         // result.addCallback(new IndexCB());
 
         // Count all added datapoints, not just those that came in through PUT rpc
