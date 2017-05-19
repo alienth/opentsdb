@@ -513,7 +513,7 @@ public final class TSDB {
   }
 
   private Deferred<Object> addPointInternal(final String metricStr,
-                                            long timestamp,
+                                            final long timestamp,
                                             final double value,
                                             final Map<String, String> tagm) {
     // we only accept positive unix epoch timestamps in seconds or milliseconds
